@@ -2,6 +2,7 @@
 // the header of the Shopper seat, opening the account panel with the full account id, "Demo account, testnet" for the
 // derived account, and a link to the account on the explorer. No wallet, no sign-in, nothing signed. Nothing at all
 // is drawn while passes are off (AC-REQ-14-06-01).
+import { useRef, useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DEMO_ACCOUNT_LABEL } from '@/shared/types';
@@ -15,6 +16,23 @@ import { useWalletSignIn } from './useWalletSignIn';
 export function AccountChip() {
   const account = useNearAccount();
   const wallet = useWalletSignIn();
+  // Ruling 62: the panel is a modal dialog, which makes everything outside it inert (pointer-events on the body and
+  // the focus trap), and NEAR Connect draws its wallet chooser outside it. So "Use my NEAR testnet wallet" closes the
+  // panel first, and the sign-in starts only once the close has finished (Radix calls onCloseAutoFocus after the panel
+  // and its inert layer are gone). Focus is not handed back to the chip, so the chooser keeps it. When the sign-in
+  // settles the panel reopens: with the wallet account, or with the error line.
+  const [open, setOpen] = useState(false);
+  const walletPending = useRef(false);
+  const startWallet = () => {
+    walletPending.current = true;
+    setOpen(false);
+  };
+  const onCloseAutoFocus = (e: Event) => {
+    if (!walletPending.current) return;
+    walletPending.current = false;
+    e.preventDefault();
+    void wallet.signIn().finally(() => setOpen(true));
+  };
   if (!account?.passesEnabled || !account.accountId) return null;
   const { accountId, explorerUrl, source } = account;
   const chipText = `Passes go to ${shortAccount(accountId)}`;
@@ -22,7 +40,7 @@ export function AccountChip() {
   return (
     // Its own line under the header's bar: beside the seat chip and Switch seat it would not fit a 375 px phone.
     <div className="mx-auto flex max-w-content px-4 pb-1 sm:px-8">
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -36,7 +54,7 @@ export function AccountChip() {
           </span>
         </button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>Where your passes go</DialogTitle>
           <DialogDescription>
@@ -59,7 +77,7 @@ export function AccountChip() {
           {source === 'demo' && (
             // F8.2 (Should): optional; signing in signs no transaction.
             <div className="flex flex-col gap-1.5">
-              <Button type="button" variant="outline" className="min-h-touch self-start" disabled={wallet.busy} onClick={() => void wallet.signIn()}>
+              <Button type="button" variant="outline" className="min-h-touch self-start" disabled={wallet.busy} onClick={startWallet}>
                 {wallet.busy ? 'Opening your wallet…' : 'Use my NEAR testnet wallet'}
               </Button>
               {wallet.error && (
