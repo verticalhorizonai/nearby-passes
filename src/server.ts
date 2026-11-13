@@ -9,14 +9,20 @@ import { PayPalOrdersAdapter } from './services/paypal/paypalAdapter.js';
 import { fetchTransport } from './services/adapters/transport.js';
 import { GooglePlacesAdapter } from './services/places/placesAdapter.js';
 import { AnthropicMessagesAdapter } from './services/agent/anthropicAdapter.js';
-import { boundedTransport } from './guards/outboundBoundary.js';
+import { boundedTransport, installOutboundFetchGuard } from './guards/outboundBoundary.js';
 import { assertClientHasNoSecrets } from './guards/credentialLeakScan.js';
 import { fileURLToPath } from 'node:url';
+import { loadNearConfig } from './services/near/nearConfig.js';
+import { LiveNearAdapter } from './services/near/liveNearAdapter.js';
+import { PassUpkeep } from './services/passes/upkeep.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
   assertPayPalSandbox(config.paypalBaseUrl); // before the pool or the listener (REQ-06-02)
+  const nearConfig = loadNearConfig(process.env); // testnet only, or no start (Nearby Passes rule 2; REQ-14-03); null: passes off
   await assertClientHasNoSecrets(fileURLToPath(new URL('../client/', import.meta.url)));
+  // The global fetch too (Nearby Passes SEC-14-05-02): near-api-js uses it for the testnet RPC.
+  installOutboundFetchGuard(nearConfig ? [new URL(nearConfig.rpcUrl).hostname] : []);
   const outbound = boundedTransport(fetchTransport);
   const db = createPool(config.databaseUrl);
   await applySchema(db);
@@ -31,7 +37,8 @@ async function main(): Promise<void> {
     config.anthropicApiKey && config.anthropicModel
       ? new AnthropicMessagesAdapter(outbound, { apiKey: config.anthropicApiKey, model: config.anthropicModel })
       : null;
-  const app = await buildApp({ db, config, calendar, paypal, places, anthropic, logger: true });
+  const near = nearConfig ? { adapter: new LiveNearAdapter(nearConfig), config: nearConfig } : null;
+  const app = await buildApp({ db, config, calendar, paypal, places, anthropic, logger: true, near });
   const close = async () => {
     await app.close();
     await calendar.close();
@@ -41,6 +48,10 @@ async function main(): Promise<void> {
   process.on('SIGTERM', close);
   process.on('SIGINT', close);
   await app.listen({ port: config.port, host: '0.0.0.0' });
+  // Upkeep (Nearby Passes 3.6.6): refunds and top-ups every five minutes, sample merchants only.
+  if (near && app.services.passes) {
+    new PassUpkeep(db, near.adapter, near.config, app.services.passes, () => new Date(), (line) => app.log.info(line)).start();
+  }
 }
 
 main().catch((err) => {

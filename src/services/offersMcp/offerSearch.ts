@@ -2,7 +2,7 @@
 // and get_offer, and the re-check the checkout handoff runs. It uses the app's own matching code (3.5) on the app's
 // own offers: no model, no outside call, no write, no session.
 import type { Db } from '../../models/db.js';
-import type { DayOfWeek, GeoPoint, OfferCategory } from '../../shared/types.js';
+import type { DayOfWeek, GeoPoint, OfferCategory, PickPass } from '../../shared/types.js';
 import { APPOINTMENT_WINDOW_DAYS, ASSISTANT_STOP_MINUTES, MCP_MAX_RADIUS_MILES } from '../../shared/types.js';
 import { matchOffers, roundScore, type Candidate } from '../matching/matcher.js';
 import { haversineMeters, METERS_PER_MILE } from '../matching/geo.js';
@@ -10,6 +10,7 @@ import { DOWNTOWN_TUCSON, MAX_DISTANCE_FROM_DOWNTOWN_M } from '../calendar/event
 import { loadMatchOffers, visibleOffersSql } from '../picks/picksService.js';
 import { formatMiles, formatValidWindow } from '../agent/fallback.js';
 import { cleanPlaceName, cleanStopTitle } from '../handoff/linkText.js';
+import { passForTool } from '../agent/agentLoop.js';
 
 /** ISO 8601 date and time with an offset (Z or ±HH:MM), as the tools require. */
 const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
@@ -138,11 +139,25 @@ export function showable(candidates: Candidate[], offerId: string): Candidate | 
 }
 
 export class OfferSearch {
+  /** Nearby Passes F9.4: each offer's open pass, when passes are on (the `pass` field is absent otherwise). */
+  private passFacts: ((offerIds: string[]) => Promise<Map<string, PickPass | null>>) | null = null;
+
   constructor(
     private readonly db: Db,
     private readonly appBaseUrl: string,
     private readonly now: () => Date = () => new Date(),
   ) {}
+
+  setPassFacts(fn: (offerIds: string[]) => Promise<Map<string, PickPass | null>>): void {
+    this.passFacts = fn;
+  }
+
+  /** Adds `pass` (open count and cash back, or null) to each offer when passes are on (F9.4; 3.6.5). */
+  private async withPasses<T extends { offer_id: string }>(offers: T[]): Promise<T[]> {
+    if (!this.passFacts || offers.length === 0) return offers;
+    const facts = await this.passFacts(offers.map((o) => o.offer_id));
+    return offers.map((o) => ({ ...o, pass: passForTool(facts.get(o.offer_id)) }));
+  }
 
   /** find_offers_near: the offers Nearby would show for a stop at this place and time, best first. */
   async findNear(input: { lat: unknown; lng: unknown; starts_at: unknown; radius_miles?: unknown; title?: unknown; place?: unknown }) {
@@ -173,7 +188,7 @@ export class OfferSearch {
         checkout_url: checkoutUrl(this.appBaseUrl, c.offer.id, stop, String(input.starts_at), stopNames(input)),
       });
     }
-    return { offers, note: offers.length === 0 ? NOTHING_FITS_NOTE : null };
+    return { offers: await this.withPasses(offers), note: offers.length === 0 ? NOTHING_FITS_NOTE : null };
   }
 
   /**
@@ -183,7 +198,7 @@ export class OfferSearch {
   async getOffer(input: { offer_id: unknown; lat?: unknown; lng?: unknown; starts_at?: unknown; title?: unknown; place?: unknown }) {
     const facts = typeof input.offer_id === 'string' ? await loadOfferFacts(this.db, input.offer_id, null) : null;
     if (!facts) return { error: 'No offer exists with this offer_id.' };
-    const base = offerFields(facts);
+    const [base] = await this.withPasses([offerFields(facts)]);
     const none = { ...base, time_fit: null, score: null, checkout_url: null };
     const given = [input.lat, input.lng, input.starts_at].filter((v) => v !== undefined && v !== null).length;
     if (given === 0) return { offer: none, note: 'Give lat, lng and starts_at to get the time fit, the score and a checkout link for a stop.' };

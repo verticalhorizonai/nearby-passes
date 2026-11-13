@@ -2,7 +2,7 @@
 // fallback. The agent implementation plugs in here (tasks 33, 34, 36, 37, 39, 40, 80, 81).
 import type { Candidate } from '../matching/matcher.js';
 import type { ChosenPick } from './fallback.js';
-import type { PickSource } from '../../shared/types.js';
+import type { PickPass, PickSource } from '../../shared/types.js';
 import type { RunReporter } from './agentActivity.js';
 
 export interface ChooseContext {
@@ -15,6 +15,8 @@ export interface ChooseContext {
   radiusMeters: number;
   /** Where the run reports each tool call as it starts (build ruling 43). */
   reporter?: RunReporter;
+  /** Nearby Passes (3.6.5): each candidate offer's open pass, from the cached counts. Absent when passes are off. */
+  passFacts?: Map<string, PickPass | null>;
 }
 
 export type FallbackCause = 'kill_switch' | 'rate_limit' | 'model_error' | 'model_timeout' | 'invalid_output' | 'no_model_configured';

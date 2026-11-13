@@ -3,10 +3,16 @@
 // appointment of the session back on, in one transaction. Sample data stays. Nothing is sent to PayPal.
 import type { Db } from '../../models/db.js';
 import { withTransaction } from '../../models/db.js';
+import type { DbClient } from '../../models/db.js';
 import type { ResetDemoResult } from '../../shared/types.js';
 
-export async function resetDemo(db: Db, sessionId: string): Promise<ResetDemoResult> {
+/** Nearby Passes (spec 3.6.2): moves the session to its next demo account in the reset's transaction; returns it. */
+export type NearReset = (tx: DbClient, sessionId: string) => Promise<string>;
+
+export async function resetDemo(db: Db, sessionId: string, nearReset?: NearReset): Promise<ResetDemoResult> {
   return withTransaction(db, async (tx) => {
+    // The session's pass claims go before its proposals (migration 004); the passes stay on chain.
+    await tx.query('DELETE FROM pass_claims WHERE session_id = $1', [sessionId]);
     const purchases = await tx.query('DELETE FROM purchases WHERE proposal_id IN (SELECT id FROM proposals WHERE session_id = $1)', [sessionId]);
     const proposals = await tx.query('DELETE FROM proposals WHERE session_id = $1', [sessionId]);
     const assistantStops = await tx.query("DELETE FROM appointments WHERE session_id = $1 AND added_by = 'assistant'", [sessionId]);
@@ -26,6 +32,8 @@ export async function resetDemo(db: Db, sessionId: string): Promise<ResetDemoRes
       appointmentsReenabled: appts.rowCount ?? 0,
       assistantStopsRemoved: assistantStops.rowCount ?? 0,
       postedOffersRemoved: live.rows[0].n,
+      // Nearby Passes: present only when passes are on, so the result is unchanged with NEAR_NETWORK unset.
+      ...(nearReset ? { nearAccountId: (await nearReset(tx, sessionId)) ?? undefined } : {}),
     };
   });
 }

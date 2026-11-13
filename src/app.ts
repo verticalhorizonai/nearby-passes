@@ -35,6 +35,10 @@ import { OfferSearch } from './services/offersMcp/offerSearch.js';
 import { WindowLimiter } from './services/offersMcp/windowLimiter.js';
 import { HandoffService } from './services/handoff/handoffService.js';
 import { HANDOFFS_PER_SESSION_PER_HOUR, MCP_REQUESTS_PER_ADDRESS_PER_MINUTE } from './shared/types.js';
+import type { NearAdapter } from './services/near/adapter.js';
+import type { NearConfig } from './services/near/nearConfig.js';
+import { PassService } from './services/passes/passService.js';
+import { registerPassRoutes } from './api/passRoutes.js';
 
 export interface AppDeps {
   db: Db;
@@ -52,6 +56,8 @@ export interface AppDeps {
   /** Where the built client lives; the server serves it when it exists. */
   clientDir?: string;
   logger?: boolean;
+  /** Nearby Passes: the NEAR adapter and its settings; null or absent when NEAR_NETWORK is unset (passes off). */
+  near?: { adapter: NearAdapter; config: NearConfig } | null;
 }
 
 export interface AppServices {
@@ -68,6 +74,8 @@ export interface AppServices {
   handoff: HandoffService;
   /** The agent's runs in flight, step by step (build ruling 43). */
   activity: AgentActivity;
+  /** Nearby Passes; null when passes are off (REQ-14-06). */
+  passes: PassService | null;
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance & { services: AppServices }> {
@@ -93,6 +101,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance & { servi
     merchants: new MerchantDirectory(deps.db, deps.calendar, now),
     offerSearch: new OfferSearch(deps.db, deps.config.appBaseUrl, now),
     handoff: new HandoffService(deps.db, new WindowLimiter(HANDOFFS_PER_SESSION_PER_HOUR, 3_600_000, () => now().getTime()), now),
+    passes: deps.near ? new PassService(deps.db, deps.near.adapter, deps.near.config, deps.config.appBaseUrl, deps.config.repoUrl, now) : null,
   };
 
   await app.register(cookie);
@@ -117,7 +126,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance & { servi
   registerCalendarRoutes(app, services);
   registerPurchaseRoutes(app, services);
   registerConfigRoutes(app, deps.config);
+  if (services.passes) {
+    const passes = services.passes;
+    picks.setPassFacts((ids) => passes.passFacts(ids)); // Nearby Passes 3.6.5
+    services.offerSearch.setPassFacts((ids) => passes.passFacts(ids)); // Nearby Passes F9.4
+  }
   registerMerchantRoutes(app, services, deps.db);
+  registerPassRoutes(app, services.passes, deps.config.appBaseUrl);
   registerHandoffRoutes(app, services.handoff);
   registerMcpRoutes(app, services.offerSearch, new WindowLimiter(MCP_REQUESTS_PER_ADDRESS_PER_MINUTE, 60_000, () => now().getTime()));
 

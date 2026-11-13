@@ -2,7 +2,13 @@
 // shopper's taps through POST /api/proposals/{id}/accept and /decline; never exposed to the agent.
 import type { Db } from '../../models/db.js';
 import { withTransaction } from '../../models/db.js';
-import type { AcceptProposalResult, Proposal, RestoreHiddenPicksResult } from '../../shared/types.js';
+import type { AcceptIntent, AcceptProposalResult, PassConfirmSheet, Proposal, RestoreHiddenPicksResult } from '../../shared/types.js';
+import type { ProposalJoinedRow } from './proposalRows.js';
+import type { DbClient } from '../../models/db.js';
+import { ApiError } from '../../api/http.js';
+
+/** Nearby Passes (spec 3.6.3, F8.4): checks a pick can be claimed as a pass and builds its sheet; throws ApiError. */
+export type PassGate = (tx: DbClient, sessionId: string, p: ProposalJoinedRow) => Promise<PassConfirmSheet>;
 import { PROPOSAL_EXPIRY_MS } from '../../shared/types.js';
 import { badRequest, notFound } from '../../api/http.js';
 import { applyLazyTransitions } from './lifecycle.js';
@@ -13,7 +19,7 @@ export class ProposalService {
   constructor(private readonly db: Db, private readonly now: () => Date = () => new Date()) {}
 
   /** proposed -> accepted (or accepted stays accepted with a fresh token); declined or expired is refused. */
-  async accept(sessionId: string, proposalId: string): Promise<AcceptProposalResult> {
+  async accept(sessionId: string, proposalId: string, intent: AcceptIntent = 'paypal', passGate?: PassGate): Promise<AcceptProposalResult> {
     // Lazy expiry runs first and is kept even when the request is then refused (REQ-03-12).
     await applyLazyTransitions(this.db, this.now(), { sessionId, proposalId });
     return withTransaction(this.db, async (tx) => {
@@ -23,13 +29,21 @@ export class ProposalService {
       const p = (await loadProposal(tx, sessionId, proposalId))!;
       if (p.status === 'declined' || p.status === 'expired') throw badRequest(`This pick is ${p.status} and cannot be accepted.`);
       if (p.offer_removed_at) throw badRequest('The merchant removed this offer.'); // build ruling 44
+      // A pick is settled one way (Nearby Passes 3.6.3): claimed or being claimed, no Yes of either kind.
+      if (p.claim_status === 'claimed' || p.claim_status === 'pending') throw new ApiError(409, 'pass_unavailable', 'This pick was claimed as a pass.');
+      let passSheet: PassConfirmSheet | null = null;
+      if (intent === 'pass') {
+        if (p.purchased) throw new ApiError(409, 'pass_unavailable', 'This pick is already bought.');
+        if (!passGate) throw new ApiError(409, 'pass_unavailable', 'Passes are not available.');
+        passSheet = await passGate(tx, sessionId, p);
+      }
       const { token, hash, expiresAt } = mintToken(now);
       await tx.query(
-        `UPDATE proposals SET status = 'accepted', confirm_token_hash = $3, confirm_token_expires_at = $4, confirm_token_used_at = NULL
+        `UPDATE proposals SET status = 'accepted', confirm_token_hash = $3, confirm_token_expires_at = $4, confirm_token_used_at = NULL, accept_intent = $5
           WHERE id = $1 AND session_id = $2 AND status IN ('proposed','accepted')`,
-        [proposalId, sessionId, hash, expiresAt],
+        [proposalId, sessionId, hash, expiresAt, intent],
       );
-      return { confirmSheet: toConfirmSheet(p), confirmationToken: token, confirmationTokenExpiresAt: expiresAt.toISOString() };
+      return { confirmSheet: toConfirmSheet(p), confirmationToken: token, confirmationTokenExpiresAt: expiresAt.toISOString(), intent, passSheet };
     });
   }
 

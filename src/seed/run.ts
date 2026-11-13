@@ -2,6 +2,7 @@
 import { createPool } from '../models/db.js';
 import { applySchema } from '../models/schema/runner.js';
 import { seedSampleData } from './seed.js';
+import { loadNearConfig } from '../services/near/nearConfig.js';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -11,8 +12,10 @@ if (!url) {
 const db = createPool(url);
 try {
   await applySchema(db);
-  const counts = await seedSampleData(db);
-  console.log(`Seeded sample data: ${counts.merchants} sample merchants, ${counts.offers} sample offers. The demo calendar ships with the app.`);
+  // Nearby Passes: the guard runs here too; a NEAR setting that is not testnet stops the seed (spec rule 2).
+  const near = loadNearConfig(process.env);
+  const counts = await seedSampleData(db, near?.merchantAccounts ?? null);
+  console.log(`Seeded sample data: ${counts.merchants} sample merchants, ${counts.offers} sample offers. The demo calendar ships with the app.${near ? ` Passes on NEAR testnet for ${Object.keys(near.merchantAccounts).length} sample merchants.` : ''}`);
 } catch (err) {
   console.error(`Seeding failed: ${(err as Error).message}`);
   process.exitCode = 1;

@@ -1,9 +1,11 @@
 // The picks for one appointment (F2.2, F3.1, F3.2; REQ-02-02, REQ-02-03, REQ-03-01, REQ-03-02, REQ-03-07,
 // REQ-03-08): up to two pick cards under "Two picks for this stop" / "One pick for this stop" with "Chosen by the
 // agent", the no-match message, Yes -> confirm sheet -> Pay with PayPal, and Not now. A declined pick is hidden.
+// Nearby Passes (F8.4; REQ-09-04): Claim as pass -> accept with intent pass -> the pass confirm sheet -> Yes, claim it
+// -> POST /api/passes/claim. The PayPal path above is unchanged: Yes posts accept with no body, as before.
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import type { AcceptProposalResult, AppointmentPicks, Pick, Proposal, RestoreHiddenPicksResult, StartPaymentResult } from '@/shared/types';
+import type { AcceptProposalResult, AppointmentPicks, ClaimPassResult, Pick, Proposal, RestoreHiddenPicksResult, StartPaymentResult } from '@/shared/types';
 import { NO_MATCH_MESSAGE, PAYMENT_FAILED_MESSAGE } from '@/shared/types';
 import { api, isApiError, useApiQuery } from '@/hooks/useApi';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -11,6 +13,7 @@ import { savePendingPayment } from '@/client/pendingPayment';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/button';
 import { ConfirmPurchase } from './ConfirmPurchase';
+import { ClaimPassSheet } from '@/components/passes/ClaimPassSheet';
 import { PickCard, PickCardSkeleton } from './PickCard';
 import { RunSteps } from './AgentStatus';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
@@ -48,6 +51,12 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  // The pass yes (F8.4): its accept result, the sheet, the claim in flight, its result or the server's plain message.
+  const [passConfirm, setPassConfirm] = useState<AcceptProposalResult | null>(null);
+  const [passSheetOpen, setPassSheetOpen] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimed, setClaimed] = useState<ClaimPassResult | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
   /** Read out by screen readers after a restore (build ruling 40). */
   const [announce, setAnnounce] = useState('');
 
@@ -117,6 +126,58 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
     }
   };
 
+  // Claim as pass (F8.4 step 1; AC-REQ-09-04-01): accept with intent pass; the server checks a pass is still open.
+  const onClaimPass = async (pick: Pick) => {
+    setBusyId(pick.proposalId);
+    try {
+      const result = await api.post<AcceptProposalResult>(`/api/proposals/${encodeURIComponent(pick.proposalId)}/accept`, { intent: 'pass' });
+      if (!result.passSheet) throw new Error('no pass sheet');
+      setPassConfirm(result);
+      setClaimed(null);
+      setClaimError(null);
+      setPassSheetOpen(true);
+    } catch (e) {
+      if (isApiError(e) && (e.status === 409 || e.status === 400)) {
+        // No pass left, claiming paused, or the pick settled another way: the server's plain words, then fresh picks.
+        toast(e.message);
+        reload();
+      } else if (isApiError(e) && e.status === 503) {
+        toast.error(e.message);
+      } else {
+        toast.error('Could not open this pass. Try again.');
+      }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Yes, claim it (F8.4 steps 3-4; AC-REQ-09-04-02). Only the proposal and the token are sent. A refusal or a NEAR
+  // failure keeps the sheet open with the server's message; the token is released, so Yes, claim it can be tapped again.
+  const onClaim = async () => {
+    if (!passConfirm?.passSheet) return;
+    const proposalId = passConfirm.passSheet.proposalId;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const result = await api.post<ClaimPassResult>('/api/passes/claim', { proposalId, confirmationToken: passConfirm.confirmationToken });
+      setClaimed(result);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              picks: prev.picks.map((p) =>
+                p.proposalId === proposalId ? { ...p, pass: null, passClaim: { status: 'claimed' as const, tokenId: result.pass.tokenId, error: null } } : p,
+              ),
+            }
+          : prev,
+      );
+    } catch (e) {
+      setClaimError(isApiError(e) ? e.message : 'The pass could not be claimed. Try again.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   // Pay with PayPal (REQ-03-01, REQ-03-07, REQ-03-08): the amount is never sent; the server reads the stored price.
   const onPay = async () => {
     if (!confirm) return;
@@ -175,6 +236,7 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
               pick={p}
               onYes={onYes}
               onNotNow={onNotNow}
+              onClaimPass={onClaimPass}
               busy={busyId === p.proposalId}
               leaving={leaving.has(p.proposalId)}
               raised={i === 0}
@@ -231,6 +293,17 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
         }}
         onPay={onPay}
         paying={paying}
+      />
+      <ClaimPassSheet
+        sheet={passConfirm?.passSheet ?? null}
+        open={passSheetOpen}
+        onOpenChange={(o) => {
+          if (!claiming) setPassSheetOpen(o);
+        }}
+        onClaim={() => void onClaim()}
+        claiming={claiming}
+        result={claimed}
+        error={claimError}
       />
     </section>
   );

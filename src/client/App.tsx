@@ -10,6 +10,7 @@ import { HandoffPage } from '@/pages/HandoffPage';
 import { HomePage } from '@/pages/HomePage';
 import { MerchantDashboardPage } from '@/pages/MerchantDashboardPage';
 import { MerchantListPage } from '@/pages/MerchantListPage';
+import { MyPassesPage } from '@/pages/MyPassesPage';
 import { MyWeekPage } from '@/pages/MyWeekPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PaymentResultPage } from '@/pages/PaymentResultPage';
@@ -25,6 +26,7 @@ export function AppRoutes() {
         <Route path="/week" element={<MyWeekPage />} />
         <Route path="/appointments/:appointmentId" element={<AppointmentDetailPage />} />
         <Route path="/handoff" element={<HandoffPage />} />
+        <Route path="/passes" element={<MyPassesPage />} />
         <Route path="/pay/return" element={<PaymentResultPage kind="return" />} />
         <Route path="/pay/cancel" element={<PaymentResultPage kind="cancel" />} />
         <Route path="/merchant" element={<MerchantListPage />} />

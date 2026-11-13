@@ -52,6 +52,7 @@ export class PurchaseService {
         `UPDATE proposals SET confirm_token_used_at = $4
           WHERE id = $1 AND session_id = $2 AND confirm_token_hash = $3
             AND confirm_token_used_at IS NULL AND confirm_token_expires_at > $4
+            AND (accept_intent IS NULL OR accept_intent = 'paypal') -- a pass token never pays (Nearby Passes 3.6.3)
           RETURNING id`,
         [proposalId, sessionId, hash, now],
       );

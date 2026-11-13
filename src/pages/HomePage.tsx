@@ -1,12 +1,14 @@
 // Home (F6.1; REQ-05-01; spec 3.11.1; design/home.html). Not a marketing site: it introduces the demonstration, in
 // this order: header and hero, Two sides, How the demo works, What is real and what is sample, How to test, footer.
 // The footer's source link appears only when `GET /api/config/public` returns `repoUrl` (task 75).
+// With passes on, "Passes on NEAR" follows How to test (Nearby Passes 3.6.7, F12.1, F12.2); with them off, nothing.
 import type { MouseEvent, ReactNode } from 'react';
 import { ArrowRight, CalendarDays, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HeroDrawing } from '@/components/home/HeroDrawing';
+import { PassesOnNear } from '@/components/near/PassesOnNear';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { usePublicConfig } from '@/hooks/usePublicConfig';
@@ -201,6 +203,8 @@ export function HomePage() {
           </Link>
         </section>
       </div>
+
+      <PassesOnNear />
 
       {/* Bring your own agent (build ruling 42): the public MCP server and what an assistant can and cannot do. */}
       <section aria-labelledby="agent-heading" className="mx-auto flex max-w-content flex-col gap-4 px-4 pb-20 sm:px-8" data-testid="bring-your-own-agent">

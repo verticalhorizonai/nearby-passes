@@ -4,3 +4,7 @@ dist/
 *.log
 !specs/*.log
 coverage/
+
+# Nearby Passes: the operator's testnet keys (scripts/near/setup-testnet.sh) and the contract build
+.env.near
+contracts/passes/target/

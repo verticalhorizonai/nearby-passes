@@ -10,6 +10,10 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'test/**/*.test.ts', 'test/**/*.test.tsx'],
     setupFiles: ['test/setup.ts'],
     environment: 'node',
+    // Node 25 turns on its own Web Storage global, which shadows jsdom's localStorage; Node 22 accepts the flag too
+    // (Nearby Passes ruling 53(a)), so `npm test` passes the same on either.
+    pool: 'forks',
+    poolOptions: { forks: { execArgv: ['--no-experimental-webstorage'] } },
     testTimeout: 20000,
     hookTimeout: 30000,
   },

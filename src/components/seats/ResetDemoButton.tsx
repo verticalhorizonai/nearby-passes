@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { api } from '@/hooks/useApi';
+import { refreshNearAccount } from '@/hooks/useNearAccount';
 
 export function ResetDemoButton({ onReset }: { onReset?: (r: ResetDemoResult) => void }) {
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,8 @@ export function ResetDemoButton({ onReset }: { onReset?: (r: ResetDemoResult) =>
       const result = await api.post<ResetDemoResult>('/api/demo/reset', {});
       toast.success('Demo reset. This browser’s proposals, purchases and posted offers are removed and every appointment is on again.');
       onReset?.(result);
+      // With passes on the session moves to a new demo NEAR account (Nearby Passes 3.6.2): the chip reads it again.
+      if (result.nearAccountId) void refreshNearAccount();
     } catch {
       toast.error('The demo did not reset. Try again in a moment.');
     } finally {

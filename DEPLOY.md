@@ -1,4 +1,4 @@
-# Deploying Nearby
+# Deploying Nearby (and Nearby Passes)
 
 Nearby runs as one container: the Fastify server applies the database schema at start, serves the API under `/api`
 and serves the built React client. It needs a PostgreSQL database. It is built for Railway with Railway's
@@ -22,6 +22,34 @@ placeholder values.
 | `GOOGLE_MAPS_SERVER_KEY` | No | Server-side key restricted to the Places API (New). Without it, the map is the SVG plot of Nearby's own merchants. |
 | `GOOGLE_MAPS_BROWSER_KEY` | No | Browser key restricted to the Maps JavaScript API and your domain. Without it, the map is the SVG plot. |
 | `APP_REPO_URL` | No | When set, the home page footer links to the source repository. |
+
+### Nearby Passes (NEAR testnet)
+
+Without `NEAR_NETWORK` the app runs as Nearby, with no pass controls. With `NEAR_NETWORK=testnet` it needs the
+variables below; the operator's `scripts/near/setup-testnet.sh` writes them to `.env.near`, and
+`scripts/near/push-railway.sh` sends them to the linked Railway service through standard input (never on a command
+line). The app refuses to start if any of them names anything but testnet.
+
+| Variable | Required with passes | What it is |
+|---|---|---|
+| `NEAR_NETWORK` | Yes | `testnet`. |
+| `NEAR_RPC_URL` | No | Default `https://test.rpc.fastnear.com`. A mainnet endpoint is refused. |
+| `NEAR_EXPLORER_TX_URL`, `NEAR_EXPLORER_ACCOUNT_URL` | No | Default `https://testnet.near.rocks/tx/{hash}` and `https://testnet.near.rocks/account/{account}`. |
+| `NEAR_PASSES_CONTRACT_ID` | Yes | e.g. `contract.nearby-passes.testnet`. |
+| `NEAR_AGENT_ACCOUNT_ID` | Yes | e.g. `agent.nearby-passes.testnet`. |
+| `NEAR_AGENT_PRIVATE_KEY` | Yes | The agent's function-call key. Secret. |
+| `NEAR_MERCHANT_ACCOUNTS_JSON` | Yes | Merchant id to testnet account, for the four NEAR-enabled sample merchants. |
+| `NEAR_MERCHANT_KEYS_JSON` | Yes | Testnet account to key, the same four. Secret. |
+| `NEAR_DEMO_ACCOUNT_SECRET` | Yes | 32 random bytes, hex; derives visitors' demo accounts. Secret. Keep it stable: changing it gives every browser a new account. |
+| `PASS_STORAGE_ESTIMATE_NEAR` | No | Default `0.03` per pass. |
+| `NEAR_MERCHANT_FLOOR_NEAR`, `NEAR_AGENT_FLOOR_NEAR` | No | Defaults `1` and `0.5`. |
+
+The owner's and the contract's keys (`NEAR_OWNER_PRIVATE_KEY`, `NEAR_CONTRACT_PRIVATE_KEY` in `.env.near`) never go to
+the hosted service. At every start the seed sets the four merchants' NEAR accounts; within the first upkeep run
+(about 15 seconds after start, then every five minutes) the app tops each sample offer up to three open passes. The
+pass images and metadata are served at `/passes/<id>.svg` and `.json` on `APP_BASE_URL`; the contract's
+`media_base_url` must name that address (`set_media_base_url`, owner only, if the host changes). The Google browser
+key's allowed sites must include the new address.
 
 `PORT` is set by Railway itself; the server listens on it (3000 when it is not set).
 

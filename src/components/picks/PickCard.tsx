@@ -2,6 +2,9 @@
 // the merchant's name with the Sample badge and the offer under it, the price at the right, the agent's reason as a
 // quotation on a #F6F8F4 panel, distance and valid window with small icons, then Yes (primary, twice as wide) and
 // Not now (secondary), both 48 px tall. `Pick.score` is not drawn (ruling 3).
+// Nearby Passes (F8.3 to F8.5; REQ-09-03, REQ-09-05): a pick whose offer has an open pass shows "Pass: 0.1 testnet NEAR
+// back" and Claim as pass beside Yes; once claimed, "Pass claimed" and Show pass, and no Yes, Claim as pass or Not now.
+// A pick with no pass (always so with passes off) is drawn exactly as before.
 import { Clock, MapPin } from 'lucide-react';
 import type { Pick } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
@@ -10,11 +13,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/ui/cn';
 import { formatCents, formatMiles, formatValidWindow } from '@/client/format';
 import { BoughtReceipt } from './BoughtReceipt';
+import { ClaimedPass, PassLine } from '@/components/passes/PickPass';
 
 interface PickCardProps {
   pick: Pick;
   onYes: (pick: Pick) => void;
   onNotNow: (pick: Pick) => void;
+  /** Claim as pass (F8.4). Without it the card offers no claim. */
+  onClaimPass?: (pick: Pick) => void;
   /** Disables both buttons while a request for this card is in flight. */
   busy?: boolean;
   /** Fades the card out after Not now, before it is removed. */
@@ -23,8 +29,13 @@ interface PickCardProps {
   raised?: boolean;
 }
 
-export function PickCard({ pick, onYes, onNotNow, busy = false, leaving = false, raised = true }: PickCardProps) {
+export function PickCard({ pick, onYes, onNotNow, onClaimPass, busy = false, leaving = false, raised = true }: PickCardProps) {
   const headingId = `pick-${pick.proposalId}-name`;
+  // Fixtures written before Nearby Passes carry neither field; both read as null.
+  const claim = pick.passClaim ?? null;
+  const settledAsPass = claim?.status === 'claimed' || claim?.status === 'pending';
+  const pass = !pick.purchased && !settledAsPass ? (pick.pass ?? null) : null;
+  const canClaim = pass !== null && !!onClaimPass;
   return (
     <article
       aria-labelledby={headingId}
@@ -73,33 +84,51 @@ export function PickCard({ pick, onYes, onNotNow, busy = false, leaving = false,
         </span>
       </div>
 
+      {pass && <PassLine cashBackText={pass.cashBackText} failedMessage={claim?.status === 'failed' ? claim.error : null} />}
+
       {pick.purchased ? (
         // A bought pick stays bought (3.9.1 with ruling 7): no Yes or Not now (REQ-03-12); its code can be shown again
         // (build ruling 38).
         <BoughtReceipt proposalId={pick.proposalId} offerTitle={pick.offerTitle} />
+      ) : settledAsPass && claim ? (
+        // A pick is settled one way (Nearby Passes 3.6.3): claimed as a pass, it shows no Yes of either kind.
+        <ClaimedPass claim={claim} offerTitle={pick.offerTitle} />
       ) : (
       <>
-      {pick.status === 'accepted' && (
+      {pick.status === 'accepted' && pick.acceptIntent !== 'pass' && (
         // Yes was tapped and the payment is not finished (3.9.1 proposed -> accepted).
         <p className="text-[13px] font-semibold text-primary" data-testid="pick-status">
           You said yes to this pick. Tap Yes to pay with PayPal.
         </p>
       )}
-      <div className="flex gap-2.5">
+      <div className={cn('flex gap-2.5', canClaim && 'flex-wrap')}>
         <Button
           type="button"
-          className="h-12 flex-[2_1_0%] text-base"
+          className={cn('h-12 flex-[2_1_0%] text-base', canClaim && 'min-w-[96px]')}
           onClick={() => onYes(pick)}
           disabled={busy || leaving}
           aria-label={`Yes, ${pick.offerTitle} from ${pick.merchantName}`}
         >
           Yes
         </Button>
+        {canClaim && (
+          // Beside Yes (3.6.7). On a phone Not now wraps to its own line so no label is cut.
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-12 min-w-[140px] flex-[2_1_0%] text-base"
+            onClick={() => onClaimPass?.(pick)}
+            disabled={busy || leaving}
+            aria-label={`Claim as pass, ${pick.offerTitle} from ${pick.merchantName}`}
+          >
+            Claim as pass
+          </Button>
+        )}
         {pick.status !== 'accepted' && (
         <Button
           type="button"
           variant="secondary"
-          className="h-12 flex-[1_1_0%] text-base"
+          className={cn('h-12 flex-[1_1_0%] text-base', canClaim && 'min-w-[96px]')}
           onClick={() => onNotNow(pick)}
           disabled={busy || leaving}
           aria-label={`Not now, ${pick.offerTitle} from ${pick.merchantName}`}

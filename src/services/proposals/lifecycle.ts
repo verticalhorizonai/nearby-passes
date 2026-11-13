@@ -5,7 +5,8 @@ import { PROPOSAL_EXPIRY_MS } from '../../shared/types.js';
 
 /**
  * Lazy transitions for a session's proposals (optionally one proposal or one appointment):
- *  - proposed or accepted -> expired, PROPOSAL_EXPIRY_MS after created_at, unless a completed purchase exists (ruling 7);
+ *  - proposed or accepted -> expired, PROPOSAL_EXPIRY_MS after created_at, unless a completed purchase exists (ruling 7)
+ *    or the pick was claimed as a pass, or its claim's outcome is not yet known (Nearby Passes, ruling 52(b));
  *  - accepted -> proposed when the confirmation token expired unused and no purchase came from it.
  */
 export async function applyLazyTransitions(
@@ -29,7 +30,8 @@ export async function applyLazyTransitions(
     `UPDATE proposals p SET status = 'expired'
       WHERE ${where} AND p.status IN ('proposed','accepted')
         AND p.created_at <= $2::timestamptz - (${expiryParam}::bigint * interval '1 millisecond')
-        AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status = 'completed')`,
+        AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status = 'completed')
+        AND NOT EXISTS (SELECT 1 FROM pass_claims c WHERE c.proposal_id = p.id AND c.status IN ('claimed','pending'))`,
     params,
   );
   await client.query(
@@ -37,7 +39,8 @@ export async function applyLazyTransitions(
       WHERE ${where} AND p.status = 'accepted'
         AND p.confirm_token_expires_at IS NOT NULL AND p.confirm_token_expires_at <= $2
         AND p.confirm_token_used_at IS NULL
-        AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status IN ('created','approved','completed'))`,
+        AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status IN ('created','approved','completed'))
+        AND NOT EXISTS (SELECT 1 FROM pass_claims c WHERE c.proposal_id = p.id AND c.status IN ('claimed','pending'))`,
     params.slice(0, params.length - 1),
   );
 }

@@ -32,5 +32,7 @@ export function registerMerchantRoutes(app: FastifyInstance, s: AppServices, db:
     reply.header('Cache-Control', 'no-store');
     return ok(reply, await s.merchants.salesFeed(requireUuid(req.params.merchantId, 'merchantId'), req.sessionId));
   });
-  app.post('/api/demo/reset', async (req, reply) => ok(reply, await resetDemo(db, req.sessionId)));
+  app.post('/api/demo/reset', async (req, reply) =>
+    ok(reply, await resetDemo(db, req.sessionId, s.passes ? (tx, sessionId) => s.passes!.resetAccount(tx, sessionId) : undefined)),
+  );
 }

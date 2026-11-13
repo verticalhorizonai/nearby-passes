@@ -5,10 +5,18 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /** The variables whose values must never leave the server. */
-export const SECRET_VARIABLES = ['ANTHROPIC_API_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'GOOGLE_MAPS_SERVER_KEY', 'DATABASE_URL'] as const;
+export const SECRET_VARIABLES = [
+  'ANTHROPIC_API_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'GOOGLE_MAPS_SERVER_KEY', 'DATABASE_URL',
+  // Nearby Passes (SEC-14-05-01): the agent's key, the sample merchants' keys and the demo-account secret.
+  'NEAR_AGENT_PRIVATE_KEY', 'NEAR_MERCHANT_KEYS_JSON', 'NEAR_DEMO_ACCOUNT_SECRET',
+] as const;
 
 /** Patterns of real provider credentials. */
-export const CREDENTIAL_PATTERNS: readonly RegExp[] = [/sk-ant-[A-Za-z0-9_-]{20,}/, /AIza[0-9A-Za-z_-]{35}/, /A21AA[A-Za-z0-9_-]{40,}/];
+export const CREDENTIAL_PATTERNS: readonly RegExp[] = [
+  /sk-ant-[A-Za-z0-9_-]{20,}/, /AIza[0-9A-Za-z_-]{35}/, /A21AA[A-Za-z0-9_-]{40,}/,
+  // An ed25519 private key as NEAR writes it: 64 bytes in base58, about 87 characters (a public key is about 44).
+  /ed25519:[1-9A-HJ-NP-Za-km-z]{80,}/,
+];
 
 export class CredentialLeakError extends Error {}
 
@@ -18,6 +26,13 @@ export function findLeaks(text: string, env: NodeJS.ProcessEnv): string[] {
   for (const name of SECRET_VARIABLES) {
     const v = env[name];
     if (v && v.length >= 8 && text.includes(v)) found.push(name);
+  }
+  // Each sample merchant's key inside NEAR_MERCHANT_KEYS_JSON, on its own (Nearby Passes).
+  try {
+    const keys = JSON.parse(env.NEAR_MERCHANT_KEYS_JSON ?? '{}') as Record<string, unknown>;
+    for (const k of Object.values(keys)) if (typeof k === 'string' && k.length >= 8 && text.includes(k)) found.push('NEAR_MERCHANT_KEYS_JSON');
+  } catch {
+    /* not JSON: the whole value was checked above */
   }
   for (const p of CREDENTIAL_PATTERNS) if (p.test(text)) found.push(`pattern ${p.source}`);
   return found;

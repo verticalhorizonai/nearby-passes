@@ -1,6 +1,7 @@
 // Merchant dashboard (F4.1, F4.2, F5.1; REQ-04-01..05, REQ-05-04, REQ-08-01; spec 3.8): the header chip
 // "Merchant: {name} (Sample)", the profile card, the offers list with New offer, and the live sales feed. From
 // 900 px the offers sit on the left and the sales on the right; on a phone they stack.
+// With passes on, the NEAR panel follows the profile card (Nearby Passes F10, F11; spec 3.6.7); with them off, nothing.
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -12,6 +13,8 @@ import { MerchantProfileCard } from '@/components/merchant/MerchantProfileCard';
 import { OfferForm } from '@/components/merchant/OfferForm';
 import { OffersList } from '@/components/merchant/OffersList';
 import { SalesFeedPanel } from '@/components/merchant/SalesFeedPanel';
+import { MerchantNearPanel } from '@/components/passes/MerchantNearPanel';
+import { PassActivityPanel } from '@/components/passes/PassActivityPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,6 +83,8 @@ export function MerchantDashboardPage() {
     <PageShell side="merchant" mainClassName="flex flex-col gap-6 pt-6">
       {dash.data ? <MerchantProfileCard merchant={dash.data.merchant} /> : <Skeleton className="h-[180px] rounded-section" aria-label="Loading the merchant" />}
 
+      <MerchantNearPanel merchantId={merchantId} />
+
       <div className="grid grid-cols-1 gap-6 desk:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card className="flex flex-col gap-4 rounded-section p-6" aria-labelledby="offers-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -108,7 +113,11 @@ export function MerchantDashboardPage() {
           )}
         </Card>
 
-        <SalesFeedPanel merchantId={merchantId} />
+        <div className="flex flex-col gap-6">
+          <SalesFeedPanel merchantId={merchantId} />
+          {/* Nearby Passes F11.3: beside the PayPal sales; renders nothing with passes off or no activity. */}
+          <PassActivityPanel merchantId={merchantId} />
+        </div>
       </div>
     </PageShell>
   );

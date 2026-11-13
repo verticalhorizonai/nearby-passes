@@ -1,9 +1,11 @@
 // The header of an app page (spec 3.11.1, 3.11.2): the mark and name, a chip with the current seat ("Shopper" or
 // "Merchant: {name} (Sample)") and "Switch seat", which returns to the Choose a seat page (F6.4; REQ-05-04).
+// In the Shopper seat with passes on, a line under it holds the NEAR account chip (Nearby Passes F8.1; REQ-09-01).
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeat, seatLabel } from '@/hooks/useSeat';
 import { Mark } from './Mark';
+import { AccountChip } from '@/components/near/AccountChip';
 
 interface AppHeaderProps {
   /** Shows the seat chip and "Switch seat". Off on the Home and Choose a seat pages. */
@@ -44,6 +46,7 @@ export function AppHeader({ showSeat = true, actions }: AppHeaderProps) {
           )}
         </div>
       </div>
+      {showSeat && seat?.seat === 'shopper' && <AccountChip />}
     </header>
   );
 }

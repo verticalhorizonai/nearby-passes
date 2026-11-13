@@ -123,9 +123,16 @@ export class AppointmentsService {
       [sessionId],
     );
     const boughtBy = new Map(bought.rows.map((r) => [r.appointment_id, r.n]));
+    // Passes claimed per appointment in this session (Nearby Passes F8.5; 0 when passes are off: no rows).
+    const passes = await this.db.query<{ appointment_id: string; n: number }>(
+      `SELECT p.appointment_id, count(*)::int AS n FROM pass_claims c JOIN proposals p ON p.id = c.proposal_id
+        WHERE p.session_id = $1 AND c.status = 'claimed' GROUP BY p.appointment_id`,
+      [sessionId],
+    );
+    const passesBy = new Map(passes.rows.map((r) => [r.appointment_id, r.n]));
     const appointments: UpcomingAppointment[] = rows
       .filter((r) => r.skip_reason === null)
-      .map((r) => ({ ...toAppointment(r), boughtCount: boughtBy.get(r.id) ?? 0 }));
+      .map((r) => ({ ...toAppointment(r), boughtCount: boughtBy.get(r.id) ?? 0, passCount: passesBy.get(r.id) ?? 0 }));
     const skippedEvents: SkippedEvent[] = rows
       .filter((r) => r.skip_reason !== null)
       .map((r) => ({ title: r.title, startsAt: r.starts_at.toISOString(), reason: r.skip_reason as SkippedEventReason }));

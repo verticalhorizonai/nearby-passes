@@ -23,3 +23,18 @@ export function boundedTransport(inner: Transport): Transport {
     return inner(req);
   };
 }
+
+/**
+ * Nearby Passes (SEC-14-05-02): near-api-js reaches the RPC through the global fetch, not through an adapter's
+ * transport, so at start the server also guards the global fetch: only the three hosts above and the host of
+ * NEAR_RPC_URL (checked to be testnet by the start-up guard) over HTTPS. Anything else is refused before a byte leaves.
+ */
+export function installOutboundFetchGuard(extraHosts: readonly string[] = [], target: { fetch: typeof fetch } = globalThis): void {
+  const inner = target.fetch.bind(target);
+  const allowed = new Set([...ALLOWED_OUTBOUND_HOSTS, ...extraHosts]);
+  target.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    if (url.protocol !== 'https:' || !allowed.has(url.hostname)) throw new OutboundBoundaryError(`Outbound call refused: ${url.hostname} is not an allowed service`);
+    return inner(input, init);
+  }) as typeof fetch;
+}

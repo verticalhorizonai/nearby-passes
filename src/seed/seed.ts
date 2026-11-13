@@ -5,7 +5,12 @@ import type { Db } from '../models/db.js';
 import { withTransaction } from '../models/db.js';
 import { SAMPLE_MERCHANTS, SAMPLE_OFFERS } from './sampleData.js';
 
-export async function seedSampleData(db: Db): Promise<{ merchants: number; offers: number }> {
+/**
+ * `nearMerchantAccounts` (Nearby Passes spec 3.6.1): app merchant id -> testnet account, from NEAR_MERCHANT_ACCOUNTS_JSON
+ * when passes are on. The listed merchants get their account; every other merchant gets NULL, so passes are off for
+ * them. With passes off (null), every merchant's NEAR account is NULL.
+ */
+export async function seedSampleData(db: Db, nearMerchantAccounts: Record<string, string> | null = null): Promise<{ merchants: number; offers: number }> {
   await withTransaction(db, async (tx) => {
     for (const m of SAMPLE_MERCHANTS) {
       await tx.query(
@@ -25,6 +30,10 @@ export async function seedSampleData(db: Db): Promise<{ merchants: number; offer
            owner_session_id = NULL, removed_at = NULL, replaces_offer_id = NULL`, // a seed offer is shared and never removed (rulings 44, 45)
         [o.id, o.merchantId, o.title, o.category, o.priceCents, o.regularPriceCents, o.validDays, o.validStartTime, o.validEndTime, o.isDeposit],
       );
+    }
+    await tx.query('UPDATE merchants SET near_account_id = NULL WHERE near_account_id IS NOT NULL');
+    for (const [merchantId, account] of Object.entries(nearMerchantAccounts ?? {})) {
+      await tx.query('UPDATE merchants SET near_account_id = $2 WHERE id = $1', [merchantId, account]);
     }
   });
   const merchants = Number((await db.query('SELECT count(*) FROM merchants WHERE is_sample')).rows[0].count);

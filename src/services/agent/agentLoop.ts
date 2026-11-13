@@ -16,6 +16,7 @@ import type { AnthropicAdapter, ContentBlock, Message, ToolDefinition } from './
 import type { ChooseContext, ChooseResult, FallbackCause, PickChooser } from './chooser.js';
 import { fallbackPicks, formatMiles, formatValidWindow } from './fallback.js';
 import { extractPicksJson, validateAgentPicks, wordCount } from './outputValidation.js';
+import type { PickPass } from '../../shared/types.js';
 import type { AgentRateLimiter } from './rateLimiter.js';
 
 export const MAX_TURNS = 8;
@@ -50,6 +51,21 @@ export const SYSTEM_PROMPT = [
   'Save each pick with propose_offer. Then end with only a JSON array, one object per pick: {"appointment_id": "...", "offer_id": "...", "reason": "...", "distance_m": 0}. An empty array means nothing fits.',
 ].join('\n');
 
+/** Nearby Passes 3.6.5: two lines added to the instructions when passes are on. */
+export const PASS_INSTRUCTIONS = [
+  'A candidate may carry a pass: cash back in testnet NEAR that the person can claim. A reason may mention the pass and its cash back in testnet NEAR, written exactly as the candidate gives it.',
+  'Never promise that a pass is still available.',
+].join('\n');
+
+/** The pass as the candidates tool gives it: open count and cash back in testnet NEAR, or null. */
+export function passForTool(p: PickPass | null | undefined): { open_count: number; cash_back: string } | null {
+  return p ? { open_count: p.openCount, cash_back: p.cashBackText } : null;
+}
+
+export function systemPrompt(passesOn: boolean): string {
+  return passesOn ? `${SYSTEM_PROMPT}\n${PASS_INSTRUCTIONS}` : SYSTEM_PROMPT;
+}
+
 export interface AgentDeps {
   db: Db;
   calendar: CalendarSource;
@@ -81,7 +97,7 @@ export class AgentLoop implements PickChooser {
     const deadline = Date.now() + AGENT_TIMEOUT_MS;
     try {
       const text = await this.run(ctx, this.d.anthropic, deadline);
-      const v = validateAgentPicks(extractPicksJson(text), ctx.appointment.id, this.eligible(ctx));
+      const v = validateAgentPicks(extractPicksJson(text), ctx.appointment.id, this.eligible(ctx), ctx.passFacts);
       if (!v.ok) {
         await this.discardRunProposals(ctx);
         return this.fallback(ctx, 'invalid_output');
@@ -170,6 +186,8 @@ export class AgentLoop implements PickChooser {
           score: roundScore(c.score),
           valid_days: c.offer.validDays,
           valid_window: formatValidWindow(c.offer.validStartTime, c.offer.validEndTime),
+          // Nearby Passes 3.6.5: the pass facts, only when passes are on (the field is absent otherwise).
+          ...(ctx.passFacts ? { pass: passForTool(ctx.passFacts.get(c.offer.id)) } : {}),
         }));
         return { content: JSON.stringify({ appointment_id: ctx.appointment.id, radius_m: ctx.radiusMeters, candidates: list }) };
       }
@@ -210,7 +228,7 @@ export class AgentLoop implements PickChooser {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const remaining = deadline - Date.now();
       if (remaining <= 0) throw Object.assign(new Error('agent timed out'), { name: 'TimeoutError' });
-      const res = await anthropic.createMessage({ system: SYSTEM_PROMPT, messages, tools, max_tokens: 1024 }, remaining);
+      const res = await anthropic.createMessage({ system: systemPrompt(!!ctx.passFacts), messages, tools, max_tokens: 1024 }, remaining);
       messages.push({ role: 'assistant', content: res.content });
       const uses = res.content.filter((b): b is Extract<ContentBlock, { type: 'tool_use' }> => b.type === 'tool_use');
       if (res.stop_reason !== 'tool_use' || uses.length === 0) {

@@ -1,6 +1,6 @@
 // Reading proposals with their offer and merchant, and shaping them for the API (shared-types: Proposal, Pick).
 import type { DbClient } from '../../models/db.js';
-import type { DayOfWeek, OfferCategory, Pick, PickSource, Proposal, ProposalStatus, ConfirmSheet } from '../../shared/types.js';
+import type { AcceptIntent, DayOfWeek, OfferCategory, PassClaimStatus, Pick, PickSource, Proposal, ProposalStatus, ConfirmSheet } from '../../shared/types.js';
 import { roundScore } from '../matching/matcher.js';
 
 export interface ProposalJoinedRow {
@@ -33,12 +33,23 @@ export interface ProposalJoinedRow {
   purchased: boolean;
   /** Set when the offer was removed or replaced by an edit (build ruling 44). */
   offer_removed_at: Date | null;
+  /** Nearby Passes (migration 004): the intent of the last Yes, the merchant's NEAR account, and the pick's claim. */
+  accept_intent: AcceptIntent | null;
+  merchant_near_account_id: string | null;
+  offer_owner_session_id: string | null;
+  claim_status: PassClaimStatus | null;
+  claim_token_id: string | null;
+  claim_error: string | null;
+  claim_tx: string | null;
 }
 
 const SELECT = `SELECT p.*, o.title AS offer_title, o.price_cents, o.regular_price_cents, o.category, o.valid_days,
   o.valid_start_time, o.valid_end_time, o.is_deposit, o.removed_at AS offer_removed_at, m.name AS merchant_name, m.is_sample AS merchant_is_sample,
-  EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status = 'completed') AS purchased
-  FROM proposals p JOIN offers o ON o.id = p.offer_id JOIN merchants m ON m.id = p.merchant_id`;
+  EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id AND u.status = 'completed') AS purchased,
+  m.near_account_id AS merchant_near_account_id, o.owner_session_id AS offer_owner_session_id,
+  pc.status AS claim_status, pc.token_id AS claim_token_id, pc.error AS claim_error, pc.claim_tx AS claim_tx
+  FROM proposals p JOIN offers o ON o.id = p.offer_id JOIN merchants m ON m.id = p.merchant_id
+  LEFT JOIN pass_claims pc ON pc.proposal_id = p.id`;
 
 export async function loadProposal(client: DbClient, sessionId: string, proposalId: string, forUpdate = false): Promise<ProposalJoinedRow | null> {
   const { rows } = await client.query<ProposalJoinedRow>(
@@ -97,6 +108,10 @@ export function toPick(r: ProposalJoinedRow): Pick {
     source: r.source,
     status: r.status,
     purchased: r.purchased,
+    // Nearby Passes F8.3: filled by PassService.decoratePicks when passes are on; null otherwise.
+    pass: null,
+    passClaim: r.claim_status ? { status: r.claim_status, tokenId: r.claim_token_id, error: r.claim_error } : null,
+    acceptIntent: r.accept_intent,
   };
 }
 

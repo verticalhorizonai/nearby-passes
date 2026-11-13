@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   location_lat  DOUBLE PRECISION NOT NULL,                            -- location.lat
   location_lng  DOUBLE PRECISION NOT NULL,                            -- location.lng
   is_sample     BOOLEAN          NOT NULL,                            -- isSample
+  near_account_id VARCHAR(64)    NULL,                                -- nearAccountId: testnet account of a NEAR-enabled sample merchant (Nearby Passes 3.6.1, migration 004)
   created_at    TIMESTAMPTZ      NOT NULL DEFAULT now(),              -- createdAt
   updated_at    TIMESTAMPTZ      NOT NULL DEFAULT now(),              -- updatedAt (trigger-maintained)
 
@@ -140,7 +141,8 @@ CREATE TABLE IF NOT EXISTS merchants (
   CONSTRAINT chk_merchants_type_nonblank CHECK (char_length(btrim(type)) > 0),
   CONSTRAINT chk_merchants_area_nonblank CHECK (char_length(btrim(area)) > 0),
   CONSTRAINT chk_merchants_location_lat  CHECK (location_lat BETWEEN -90 AND 90),
-  CONSTRAINT chk_merchants_location_lng  CHECK (location_lng BETWEEN -180 AND 180)
+  CONSTRAINT chk_merchants_location_lng  CHECK (location_lng BETWEEN -180 AND 180),
+  CONSTRAINT uq_merchants_near_account   UNIQUE (near_account_id)     -- one merchant per NEAR account (migration 004)
 );
 
 -- ============================================================================
@@ -253,6 +255,7 @@ CREATE TABLE IF NOT EXISTS proposals (
   confirm_token_hash       CHAR(64)    NULL,                             -- SHA-256 hex of the confirmation token (spec 3.9, 3.7.4)
   confirm_token_expires_at TIMESTAMPTZ NULL,                             -- mint time + 10 minutes (spec 3.7.4; build ruling 9)
   confirm_token_used_at    TIMESTAMPTZ NULL,                             -- set when POST /api/purchases claims it (single use)
+  accept_intent            VARCHAR(8)  NULL,                             -- AcceptIntent of the last Yes: 'paypal' | 'pass' (Nearby Passes 3.6.3, migration 004)
   created_at       TIMESTAMPTZ      NOT NULL DEFAULT now(),              -- createdAt
   updated_at       TIMESTAMPTZ      NOT NULL DEFAULT now(),              -- updatedAt (trigger-maintained)
 
@@ -276,7 +279,11 @@ CREATE TABLE IF NOT EXISTS proposals (
 
   -- ProposalStatus: 'proposed' | 'accepted' | 'declined' | 'expired'
   CONSTRAINT chk_proposals_status
-    CHECK (status IN ('proposed', 'accepted', 'declined', 'expired'))
+    CHECK (status IN ('proposed', 'accepted', 'declined', 'expired')),
+
+  -- AcceptIntent: 'paypal' | 'pass' (Nearby Passes 3.6.3, migration 004)
+  CONSTRAINT chk_proposals_accept_intent
+    CHECK (accept_intent IS NULL OR accept_intent IN ('paypal', 'pass'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_proposals_appointment_status
@@ -376,6 +383,81 @@ CREATE INDEX IF NOT EXISTS idx_purchases_proposal_id
 CREATE INDEX IF NOT EXISTS idx_purchases_offer_merchant
   ON purchases (offer_id, merchant_id);
 
+
+-- ============================================================================
+-- NEARBY PASSES (delta spec builds/nearby-passes/spec.md 3.6.1; migration 004; build ruling 49)
+-- The contract is the source of truth for a pass: no table holds a pass's status. These tables hold the session's
+-- NEAR account, the app's claim of a pick, and the transactions the server itself sent (for their links).
+-- ============================================================================
+
+-- TABLE: near_accounts   (one row per browser session that has a NEAR account; REQ-09-01, REQ-09-06, REQ-09-02)
+-- A demo account is derived from NEAR_DEMO_ACCOUNT_SECRET, session_id and account_index (3.6.2): no key is stored.
+-- Reset demo adds one to account_index. account_id is the derived implicit id (source 'demo') or a wallet's id ('wallet').
+CREATE TABLE IF NOT EXISTS near_accounts (
+  session_id     VARCHAR(64) NOT NULL,                 -- the browser session
+  account_id     VARCHAR(64) NOT NULL,                 -- NearAccountResult.accountId
+  source         VARCHAR(8)  NOT NULL DEFAULT 'demo',  -- NearAccountSource: 'demo' | 'wallet'
+  account_index  INTEGER     NOT NULL DEFAULT 0,       -- demo derivation index; +1 on Reset demo
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),   -- trigger-maintained
+
+  CONSTRAINT pk_near_accounts PRIMARY KEY (session_id),
+  CONSTRAINT chk_near_accounts_source CHECK (source IN ('demo', 'wallet')),
+  CONSTRAINT chk_near_accounts_index CHECK (account_index >= 0),
+  CONSTRAINT chk_near_accounts_account_nonblank CHECK (char_length(btrim(account_id)) > 0)
+);
+
+-- TABLE: pass_claims   (one row per pick claimed as a pass; REQ-09-04, REQ-09-05, REQ-09-07)
+-- A retry after 'failed' reuses the row (proposal_id is unique). 'pending' with a claim_tx is an unknown outcome,
+-- checked by its hash before any retry (3.6.3). Reset demo deletes the session's rows before its proposals.
+CREATE TABLE IF NOT EXISTS pass_claims (
+  id            UUID         NOT NULL DEFAULT gen_random_uuid(),
+  proposal_id   UUID         NOT NULL,                  -- the pick claimed
+  session_id    VARCHAR(64)  NOT NULL,
+  offer_id      UUID         NOT NULL,
+  merchant_id   UUID         NOT NULL,                  -- the app's merchant; its NEAR account is merchants.near_account_id
+  account_id    VARCHAR(64)  NOT NULL,                  -- the receiving NEAR account
+  token_id      VARCHAR(32)  NULL,                      -- 'pass-N', null until known
+  status        VARCHAR(8)   NOT NULL DEFAULT 'pending', -- PassClaimStatus: 'pending' | 'claimed' | 'failed'
+  claim_tx      VARCHAR(64)  NULL,                      -- transaction hash of claim_pass
+  error         TEXT         NULL,                      -- the plain message shown when failed
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),    -- trigger-maintained
+
+  CONSTRAINT pk_pass_claims PRIMARY KEY (id),
+  CONSTRAINT uq_pass_claims_proposal UNIQUE (proposal_id),
+  CONSTRAINT fk_pass_claims_proposal FOREIGN KEY (proposal_id) REFERENCES proposals (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pass_claims_offer_merchant FOREIGN KEY (offer_id, merchant_id) REFERENCES offers (id, merchant_id) ON DELETE RESTRICT,
+  CONSTRAINT chk_pass_claims_status CHECK (status IN ('pending', 'claimed', 'failed')),
+  CONSTRAINT chk_pass_claims_claimed_token CHECK (status <> 'claimed' OR token_id IS NOT NULL),
+  CONSTRAINT chk_pass_claims_token_format CHECK (token_id IS NULL OR token_id ~ '^pass-[0-9]+$')
+);
+
+CREATE INDEX IF NOT EXISTS idx_pass_claims_session ON pass_claims (session_id);
+CREATE INDEX IF NOT EXISTS idx_pass_claims_merchant_created ON pass_claims (merchant_id, created_at DESC);
+
+-- TABLE: pass_actions   (the transactions the server sent as a merchant or for upkeep; build ruling 49(b))
+-- For transaction links (Paid, the dashboard) and the activity feed. Not a pass's status: the contract holds that.
+CREATE TABLE IF NOT EXISTS pass_actions (
+  id            UUID         NOT NULL DEFAULT gen_random_uuid(),
+  merchant_id   UUID         NOT NULL,                  -- the app's merchant
+  token_id      VARCHAR(32)  NOT NULL,                  -- 'pass-N'
+  action        VARCHAR(8)   NOT NULL,                  -- PassActionKind: 'fund' | 'redeem' | 'refund'
+  actor         VARCHAR(8)   NOT NULL,                  -- PassActionActor: 'merchant' | 'upkeep'
+  session_id    VARCHAR(64)  NULL,                      -- the session that asked, null for upkeep
+  tx_hash       VARCHAR(64)  NOT NULL,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT pk_pass_actions PRIMARY KEY (id),
+  CONSTRAINT fk_pass_actions_merchant FOREIGN KEY (merchant_id) REFERENCES merchants (id) ON DELETE RESTRICT,
+  CONSTRAINT chk_pass_actions_action CHECK (action IN ('fund', 'redeem', 'refund')),
+  CONSTRAINT chk_pass_actions_actor CHECK (actor IN ('merchant', 'upkeep')),
+  CONSTRAINT chk_pass_actions_token_format CHECK (token_id ~ '^pass-[0-9]+$'),
+  CONSTRAINT uq_pass_actions_token_action UNIQUE (token_id, action)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pass_actions_merchant_created ON pass_actions (merchant_id, created_at DESC);
+
 -- ============================================================================
 -- updated_at TRIGGERS (BEFORE UPDATE on all five tables)
 -- PostgreSQL has no CREATE TRIGGER IF NOT EXISTS.
@@ -452,6 +534,35 @@ BEGIN
 END
 $do$;
 
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_near_accounts_updated'
+      AND tgrelid = 'near_accounts'::regclass
+  ) THEN
+    CREATE TRIGGER trg_near_accounts_updated
+      BEFORE UPDATE ON near_accounts
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+END
+$do$;
+
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_pass_claims_updated'
+      AND tgrelid = 'pass_claims'::regclass
+  ) THEN
+    CREATE TRIGGER trg_pass_claims_updated
+      BEFORE UPDATE ON pass_claims
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+END
+$do$;
+
+
 -- ============================================================================
 -- ENUM CONFORMANCE CHECKLIST (data-model.md §11)
 --
@@ -476,6 +587,8 @@ $do$;
 --     2. DELETE FROM proposals WHERE <scope>
 --     3. UPDATE appointments SET enabled = TRUE WHERE enabled = FALSE
 --     4. DELETE FROM appointments WHERE <scope> AND added_by = 'assistant' (build ruling 42)
+--     Nearby Passes (migration 004): pass_claims of the session are deleted before its proposals, and
+--     near_accounts.account_index goes up by one; pass_actions and everything on chain stay.
 --     <scope> is pending team-lead decision (§8 item 1).
 --     merchants, offers and seeded appointments are never deleted.
 --   Seed script:

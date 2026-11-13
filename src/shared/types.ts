@@ -95,6 +95,10 @@ export type ApiErrorCode =
   | 'rate_limited'
   /** HTTP 409. A handed-over offer no longer fits that place and time (build ruling 42). */
   | 'offer_unavailable'
+  /** HTTP 409. No pass can be claimed or the pass's state forbids the action (Nearby Passes 3.6.3; build ruling 49(e)). */
+  | 'pass_unavailable'
+  /** HTTP 503. The NEAR call failed or timed out, or passes are unavailable (Nearby Passes 3.6.3; build ruling 49(e)). */
+  | 'near_unavailable'
   | 'internal_error';
 
 /** Offer category (spec 3.8: coffee, lunch, dinner, juice or snack, service); time fit by category (REQ-02-07). */
@@ -308,6 +312,8 @@ export interface UpcomingAppointment extends Appointment {
   /** Completed purchases for this appointment in this browser session (0, 1 or 2). Created, approved and failed
    * purchases do not count. */
   boughtCount: number;
+  /** Passes claimed for this appointment in this browser session (Nearby Passes F8.5; 0 when passes are off). */
+  passCount: number;
 }
 
 export interface UpcomingAppointmentsResult {
@@ -562,6 +568,12 @@ export interface Pick {
   status: ProposalStatus;
   /** True when this pick has a completed purchase: the card shows it as bought (3.9.1 with ruling 7; build ruling 24). */
   purchased: boolean;
+  /** The offer's open pass, or null (Nearby Passes F8.3; always null when passes are off or claiming is unavailable). */
+  pass: PickPass | null;
+  /** This pick's claim as a pass, or null (Nearby Passes F8.5). */
+  passClaim: PickPassClaim | null;
+  /** The intent of the last Yes ('paypal' or 'pass'), or null before any Yes (Nearby Passes 3.6.3; ruling 54(b)). */
+  acceptIntent: AcceptIntent | null;
 }
 
 export interface AppointmentPicks {
@@ -614,6 +626,15 @@ export interface AcceptProposalResult {
   confirmSheet: ConfirmSheet;
   confirmationToken: string;
   confirmationTokenExpiresAt: string;
+  /** The intent the token was minted for (Nearby Passes 3.6.3); 'paypal' when the request named none. */
+  intent: AcceptIntent;
+  /** The pass confirm sheet when intent is 'pass', else null (Nearby Passes F8.4). */
+  passSheet: PassConfirmSheet | null;
+}
+
+/** Body of POST /api/proposals/{proposalId}/accept (Nearby Passes 3.6.3). Optional; no body means 'paypal'. */
+export interface AcceptProposalRequest {
+  intent?: AcceptIntent;
 }
 
 export type AcceptProposalResponse = ApiResponse<AcceptProposalResult>;
@@ -803,6 +824,9 @@ export interface ResetDemoResult {
   assistantStopsRemoved: number;
   /** Offers this session posted, removed (build ruling 44). */
   postedOffersRemoved: number;
+  /** The session's new demo NEAR account after the reset (Nearby Passes 3.6.2). Present only when passes are on, so the
+   * result is unchanged with NEAR_NETWORK unset (REQ-14-06). */
+  nearAccountId?: string;
 }
 
 export type ResetDemoResponse = ApiResponse<ResetDemoResult>;
@@ -959,3 +983,261 @@ export interface EditOfferResult {
 }
 
 export type EditOfferResponse = ApiResponse<EditOfferResult>;
+
+// ============================================================================
+// NEARBY PASSES ON NEAR (delta spec builds/nearby-passes/spec.md; REQ-09-01 to REQ-15-09; build ruling 49)
+// Amounts on chain are yoctoNEAR as decimal strings (u128); the app writes them as text like "0.1 testnet NEAR".
+// No amount is ever read from a request: the server computes every deposit.
+// ============================================================================
+
+/** The intent a confirmation token is minted for (3.6.3). */
+export const ACCEPT_INTENTS = ['paypal', 'pass'] as const;
+export type AcceptIntent = typeof ACCEPT_INTENTS[number];
+
+/** A pass's status on chain (3.4.1). The app never stores it. */
+export const PASS_STATUSES = ['Open', 'Claimed', 'Redeemed', 'Refunded'] as const;
+export type PassStatus = typeof PASS_STATUSES[number];
+
+/** pass_claims.status: the app's claim of a pick, not the pass's status. */
+export type PassClaimStatus = 'pending' | 'claimed' | 'failed';
+/** pass_actions (build ruling 49(b)). */
+export type PassActionKind = 'fund' | 'redeem' | 'refund';
+export type PassActionActor = 'merchant' | 'upkeep';
+export type NearAccountSource = 'demo' | 'wallet';
+
+/** Token ids are pass-1, pass-2, ... (3.4.1). The redeem field also accepts the bare number (build ruling 49(c)). */
+export const PASS_TOKEN_ID_PATTERN = /^pass-[0-9]+$/;
+
+/** F10.2 choices. */
+export const PASS_FUND_COUNT_MIN = 1;
+export const PASS_FUND_COUNT_MAX = 5;
+export const PASS_CASH_BACK_OPTIONS = ['0.05', '0.1', '0.25'] as const;
+export type PassCashBack = typeof PASS_CASH_BACK_OPTIONS[number];
+export const PASS_EXPIRY_OPTIONS = { '5m': 300_000, '24h': 86_400_000, '7d': 604_800_000 } as const;
+export type PassExpiry = keyof typeof PASS_EXPIRY_OPTIONS;
+
+/** Contract limits (3.4.2), checked again by the contract. */
+export const PASS_MINT_COUNT_MAX = 10;
+export const PASS_MIN_VALUE_NEAR = '0.01';
+export const PASS_MAX_EXPIRY_MS = 30 * 86_400_000;
+export const PASS_TITLE_MAX_LENGTH = 80;
+export const PASS_DESCRIPTION_MAX_LENGTH = 200;
+export const PASS_OFFER_ID_MAX_LENGTH = 64;
+
+/** Upkeep and seeding (3.6.6, 3.8). */
+export const OPEN_PASSES_KEPT = 3;
+export const UPKEEP_INTERVAL_MS = 300_000;
+export const UPKEEP_REFUND_DELAY_MS = 900_000;
+export const SAMPLE_PASS_EXPIRY_MS = 48 * 3_600_000;
+
+/** Caches and calls (3.6.1, F8.4). */
+export const NEAR_VIEW_CACHE_MS = 10_000;
+export const NEAR_CALL_TIMEOUT_MS = 20_000;
+export const REDEEM_GAS_TGAS = 50;
+export const REFUND_EXPIRED_MAX_PER_CALL = 10;
+
+/** Limits (3.6.4), in process like the existing ones. Over a limit: 429 rate_limited. */
+export const PASS_CLAIMS_PER_SESSION_PER_HOUR = 5;
+export const PASS_CLAIMS_PER_HOUR = 60;
+export const PASS_FUNDINGS_PER_SESSION_PER_HOUR = 3;
+export const PASS_REDEMPTIONS_PER_SESSION_PER_HOUR = 20;
+
+/** Words (Part 2). */
+export const DEMO_ACCOUNT_LABEL = 'Demo account, testnet';
+export const PASS_AGENT_SENTENCE = "Nearby's agent claims it for you. It cannot move money.";
+export const MERCHANT_PASSES_NOT_SET_UP = 'Passes are set up for four sample merchants in this demo.';
+export const PASS_SAMPLE_LINE = 'Sample merchant. Testnet only.';
+
+/** GET /api/near/account (F8.1, F13.3). */
+export interface NearAccountResult {
+  /** False when NEAR_NETWORK is unset: the app is Nearby as accepted and every other field is null or false. */
+  passesEnabled: boolean;
+  /** False when claiming is paused on chain or the agent runs low (F13.3); the reason is plain text. */
+  claimsAvailable: boolean;
+  unavailableReason: string | null;
+  network: 'testnet' | null;
+  accountId: string | null;
+  source: NearAccountSource | null;
+  explorerUrl: string | null;
+}
+export type NearAccountResponse = ApiResponse<NearAccountResult>;
+
+/** POST /api/near/account (F8.2, Should). */
+export interface SetWalletAccountRequest {
+  accountId: string;
+}
+
+/** The pass facts on a pick, a candidate or an MCP offer (F8.3, 3.6.5). */
+export interface PickPass {
+  openCount: number;
+  cashBackYocto: string;
+  /** "0.1 testnet NEAR". */
+  cashBackText: string;
+  /** Expiry of the oldest open pass, the one a claim takes (ISO 8601). */
+  expiresAt: string;
+}
+
+export interface PickPassClaim {
+  status: PassClaimStatus;
+  tokenId: string | null;
+  /** The plain message when failed. */
+  error: string | null;
+}
+
+/** The pass confirm sheet (F8.4). */
+export interface PassConfirmSheet {
+  proposalId: string;
+  merchantName: string;
+  merchantIsSample: boolean;
+  offerTitle: string;
+  cashBackText: string;
+  expiresAt: string;
+  receivingAccountId: string;
+  /** PASS_AGENT_SENTENCE. */
+  agentSentence: string;
+}
+
+/** A pass as the contract reports it (get_pass), with links the server adds. */
+export interface PassView {
+  tokenId: string;
+  status: PassStatus;
+  /** True at or past expiry (a Claimed or Open pass then shows Refund available). */
+  expired: boolean;
+  merchantAccountId: string;
+  /** The app's merchant when the account is a known sample merchant's, else null. */
+  merchantId: string | null;
+  merchantName: string | null;
+  merchantIsSample: boolean;
+  offerId: string;
+  title: string;
+  description: string;
+  valueYocto: string;
+  valueText: string;
+  expiresAt: string;
+  claimedAt: string | null;
+  settledAt: string | null;
+  ownerId: string;
+  mediaUrl: string;
+  ownerExplorerUrl: string;
+  /** The transaction of the last action the app sent for this pass (claim, redeem or refund), or null (ruling 49(b)). */
+  lastTxUrl: string | null;
+}
+export type PassResponse = ApiResponse<PassView>;
+
+/** POST /api/passes/claim (F8.4). Nothing else in the body is read. */
+export interface ClaimPassRequest {
+  proposalId: string;
+  confirmationToken: string;
+}
+export interface ClaimPassResult {
+  pass: PassView;
+  txHash: string;
+  txUrl: string;
+}
+export type ClaimPassResponse = ApiResponse<ClaimPassResult>;
+
+/** GET /api/passes/mine (F9.1). */
+export interface MyPassesResult {
+  accountId: string;
+  passes: PassView[];
+}
+export type MyPassesResponse = ApiResponse<MyPassesResult>;
+
+/** One seeded offer's passes (F10.3). */
+export interface OfferPassStats {
+  offerId: string;
+  offerTitle: string;
+  open: number;
+  claimed: number;
+  redeemed: number;
+  refunded: number;
+  heldYocto: string;
+  heldText: string;
+}
+
+/** GET /api/merchants/{merchantId}/passes (F10.1, F10.3, F11.2). */
+export interface MerchantPassesResult {
+  /** False for a merchant with no NEAR account; then notice is MERCHANT_PASSES_NOT_SET_UP and the rest is empty. */
+  nearEnabled: boolean;
+  notice: string | null;
+  accountId: string | null;
+  balanceYocto: string | null;
+  balanceText: string | null;
+  explorerUrl: string | null;
+  heldYocto: string;
+  heldText: string;
+  /** PASS_STORAGE_ESTIMATE_NEAR in yocto: the storage deposit per pass funding adds (F10.2 total; ruling 54(c)). */
+  storageEstimateYocto: string;
+  offers: OfferPassStats[];
+  /** The merchant's passes, newest first (passes_for_merchant). */
+  passes: PassView[];
+}
+export type MerchantPassesResponse = ApiResponse<MerchantPassesResult>;
+
+/** POST /api/merchants/{merchantId}/offers/{offerId}/passes (F10.2). The deposit is computed on the server. */
+export interface FundPassesRequest {
+  count: number;
+  cashBack: PassCashBack;
+  expiry: PassExpiry;
+}
+export interface FundPassesResult {
+  tokenIds: string[];
+  passes: PassView[];
+  depositYocto: string;
+  depositText: string;
+  txHash: string;
+  txUrl: string;
+}
+export type FundPassesResponse = ApiResponse<FundPassesResult>;
+
+/** POST /api/merchants/{merchantId}/passes/{tokenId}/redeem (F11.1). */
+export interface RedeemPassResult {
+  pass: PassView;
+  /** "Redeemed. 0.1 testnet NEAR sent to the holder." */
+  message: string;
+  txHash: string;
+  txUrl: string;
+}
+export type RedeemPassResponse = ApiResponse<RedeemPassResult>;
+
+/** POST /api/merchants/{merchantId}/passes/refund-expired (F11.2). */
+export interface RefundExpiredResult {
+  refunded: { tokenId: string; valueText: string; txHash: string; txUrl: string }[];
+  balanceText: string | null;
+}
+export type RefundExpiredResponse = ApiResponse<RefundExpiredResult>;
+
+/** GET /api/near/agent (F12.2): the agent account's keys as the RPC reports them now. */
+export interface AgentKey {
+  publicKey: string;
+  kind: 'function_call' | 'full_access';
+  receiverId: string | null;
+  methodNames: string[];
+  allowanceYocto: string | null;
+  allowanceText: string | null;
+}
+export interface AgentKeysResult {
+  accountId: string;
+  explorerUrl: string;
+  contractId: string;
+  /** APP_REPO_URL + '/tree/main/contracts/passes', or null when APP_REPO_URL is unset. */
+  contractSourceUrl: string | null;
+  claimsPaused: boolean;
+  keys: AgentKey[];
+}
+export type AgentKeysResponse = ApiResponse<AgentKeysResult>;
+
+/** One line of the merchant's pass activity (F11.3, Should). */
+export interface PassActivityItem {
+  kind: 'claim' | 'fund' | 'redeem' | 'refund';
+  tokenId: string;
+  at: string;
+  txUrl: string | null;
+}
+
+/** GET /api/merchants/{merchantId}/passes/activity (F11.3, Should): the merchant's pass activity, newest first, at
+ * most SALES_FEED_MAX_ITEMS; polled at the sales feed's rate. Empty for a merchant with no NEAR account. */
+export interface PassActivityResult {
+  items: PassActivityItem[];
+}
+export type PassActivityResponse = ApiResponse<PassActivityResult>;

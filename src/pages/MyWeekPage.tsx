@@ -2,6 +2,8 @@
 // day in America/Phoenix, each with an on/off switch (optimistic, reverted on failure) and a link to its picks;
 // skipped events folded at the bottom with a short reason. The map sits above the list on a phone and on the right
 // from 900 px (spec 3.11.2 Layout). Not connected (404) sends the shopper to Connect.
+// Nearby Passes (F8.5; REQ-09-05; AC-REQ-09-05-02): beside a stop's title a pill "1 pass" / "2 passes" in the style of
+// the "1 bought" pill, and a link to My passes on the page; nothing at 0 or with passes off.
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -16,6 +18,7 @@ import { cn } from '@/components/ui/cn';
 import { api, useApiQuery } from '@/hooks/useApi';
 import { usePicksPrefetch } from '@/hooks/usePicksPrefetch';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
+import { usePassesOn } from '@/hooks/useNearAccount';
 import { LiveStep, SettledChip, settledLabel } from '@/components/picks/AgentStatus';
 import { SKIP_REASON_TEXT, dayKey, formatDayHeading, formatEventWhen, formatTimeRange } from '@/client/format';
 
@@ -34,6 +37,7 @@ export function MyWeekPage() {
   const navigate = useNavigate();
   const connection = useApiQuery<CalendarConnection>('/api/calendar/connection');
   const week = useApiQuery<UpcomingAppointmentsResult>('/api/appointments/upcoming');
+  const passesOn = usePassesOn();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   // Picks for every appointment that is on, fetched in the background while the shopper reads the week.
@@ -156,6 +160,15 @@ export function MyWeekPage() {
                                 </span>
                               </span>
                             )}
+                            {passesOn && (a.passCount ?? 0) > 0 && (
+                              // Passes claimed for this stop (Nearby Passes F8.5), in the bought pill's style and line.
+                              <span data-testid="pass-pill" className="flex-none rounded-full bg-tint px-2 py-0.5 text-xs font-semibold leading-4 text-primary">
+                                <span aria-hidden="true">{a.passCount === 1 ? '1 pass' : `${a.passCount} passes`}</span>
+                                <span className="sr-only">
+                                  {a.passCount === 1 ? '1 pass claimed for this stop' : `${a.passCount} passes claimed for this stop`}
+                                </span>
+                              </span>
+                            )}
                           </span>
                           {a.enabled && runs[a.id] ? (
                             // While the run is in flight its current step takes the address line, the card's widest
@@ -224,6 +237,14 @@ export function MyWeekPage() {
         <p className="sr-only" role="status" aria-live="polite" data-testid="week-announce">
           {announce}
         </p>
+        {passesOn && (
+          <p className="text-sm text-secondary-text" data-testid="my-passes-link">
+            Passes you claim are kept on NEAR testnet.{' '}
+            <Link to="/passes" className="inline-flex min-h-touch items-center font-semibold">
+              My passes
+            </Link>
+          </p>
+        )}
         {calendarMissing && (
           <p className="text-sm text-secondary-text" data-testid="calendar-missing">
             No calendar is connected yet.{' '}

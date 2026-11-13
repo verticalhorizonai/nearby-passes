@@ -3,7 +3,7 @@
 // chooses among them (3.6), and up to two proposals are saved as `proposed`.
 import type { Db } from '../../models/db.js';
 import { withTransaction } from '../../models/db.js';
-import type { AppointmentPicks, DayOfWeek, OfferCategory } from '../../shared/types.js';
+import type { AppointmentPicks, DayOfWeek, OfferCategory, PickPass } from '../../shared/types.js';
 import type { AppointmentsService } from '../appointments/appointmentsService.js';
 import { applyLazyTransitions } from '../proposals/lifecycle.js';
 import { loadAppointmentProposals, toPick } from '../proposals/proposalRows.js';
@@ -65,6 +65,12 @@ export async function loadMatchOffers(db: Db, sessionId: string | null): Promise
 
 export class PicksService {
   private readonly inflight = new Map<string, Promise<AppointmentPicks>>();
+  /** Nearby Passes 3.6.5: pass facts for the agent's candidates, set when passes are on. */
+  private passFactsFn: ((offerIds: string[]) => Promise<Map<string, PickPass | null>>) | null = null;
+
+  setPassFacts(fn: (offerIds: string[]) => Promise<Map<string, PickPass | null>>): void {
+    this.passFactsFn = fn;
+  }
 
   constructor(
     private readonly db: Db,
@@ -145,6 +151,7 @@ export class PicksService {
       shown: match.shown,
       radiusMeters: match.radiusMeters,
       reporter,
+      passFacts: this.passFactsFn ? await this.passFactsFn(match.candidates.map((c) => c.offer.id)) : undefined,
     });
     if (result.source === 'fallback') {
       // One server log line whenever a fallback is used, naming which (kickoff, "The demo never depends on the model").
@@ -157,7 +164,8 @@ export class PicksService {
       // A run's proposals replace any the agent saved through propose_offer during the run (G-16).
       await tx.query(
         `DELETE FROM proposals p WHERE p.session_id = $1 AND p.appointment_id = $2 AND p.status = 'proposed'
-           AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id)`,
+           AND NOT EXISTS (SELECT 1 FROM purchases u WHERE u.proposal_id = p.id)
+           AND NOT EXISTS (SELECT 1 FROM pass_claims c WHERE c.proposal_id = p.id)`,
         [sessionId, appointmentId],
       );
       let rank = 1;
