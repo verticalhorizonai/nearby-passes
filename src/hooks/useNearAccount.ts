@@ -70,3 +70,20 @@ export function useNearAccount(): NearAccountResult | undefined {
 export function usePassesOn(): boolean {
   return useNearAccount()?.passesEnabled === true;
 }
+
+/**
+ * Passes on, for the banner and the tab's title on every page (ruling 60). It asks one tick after the page's own
+ * requests (a page that reads the account itself has asked by then, and the request is shared), so a page's first
+ * request is still its own, as it was before passes existed.
+ */
+export function usePassesOnDeferred(): boolean {
+  const value = useSyncExternalStore(subscribe, () => store.value, () => undefined);
+  useEffect(() => {
+    if (store.value !== undefined) return;
+    const t = setTimeout(() => {
+      if (store.value === undefined) void load();
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+  return value?.passesEnabled === true;
+}

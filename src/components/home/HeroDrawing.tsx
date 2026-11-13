@@ -30,7 +30,8 @@ const PLACES: [number, number][] = [
   [468, 330],
 ];
 
-export function HeroDrawing() {
+/** `withPass` (ruling 60, passes on): the sample card also shows what the real pick card shows for an open pass. */
+export function HeroDrawing({ withPass = false }: { withPass?: boolean } = {}) {
   return (
     <div className="relative min-w-0 flex-[1_1_460px] pb-[54px]" data-testid="hero-drawing">
       <svg
@@ -90,14 +91,31 @@ export function HeroDrawing() {
           <div className="font-display text-xl font-bold">$6.00</div>
         </div>
         <div className="text-[15px] text-body-text">&ldquo;Saguaro Bean is two blocks from your 9:30 and the deal runs until 11.&rdquo;</div>
-        <div className="flex gap-2.5" aria-hidden="true">
-          <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
-            Yes
-          </span>
-          <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">
-            Not now
-          </span>
-        </div>
+        {withPass ? (
+          <>
+            <div className="text-[13px] font-semibold text-primary">Pass: 0.1 testnet NEAR back</div>
+            <div className="flex gap-2.5" aria-hidden="true">
+              <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
+                Yes
+              </span>
+              <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">
+                Claim as pass
+              </span>
+            </div>
+            <span className="flex min-h-touch items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold" aria-hidden="true">
+              Not now
+            </span>
+          </>
+        ) : (
+          <div className="flex gap-2.5" aria-hidden="true">
+            <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
+              Yes
+            </span>
+            <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">
+              Not now
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 // Home (F6.1; REQ-05-01; spec 3.11.1; design/home.html). Not a marketing site: it introduces the demonstration, in
 // this order: header and hero, Two sides, How the demo works, What is real and what is sample, How to test, footer.
 // The footer's source link appears only when `GET /api/config/public` returns `repoUrl` (task 75).
-// With passes on, "Passes on NEAR" follows How to test (Nearby Passes 3.6.7, F12.1, F12.2); with them off, nothing.
+// With passes on (ruling 60, PROPOSED), the page leads with passes: the hero's eyebrow, text, second button and line, the
+// sample card with its pass; then How a pass works, Passes on NEAR, and today's sections under "Also in Nearby: pay with
+// PayPal". With passes off it is exactly as accepted.
 import type { MouseEvent, ReactNode } from 'react';
 import { ArrowRight, CalendarDays, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -9,6 +11,8 @@ import { PageShell } from '@/components/layout/PageShell';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HeroDrawing } from '@/components/home/HeroDrawing';
 import { PassesOnNear } from '@/components/near/PassesOnNear';
+import { HowAPassWorks } from '@/components/near/HowAPassWorks';
+import { usePassesOn } from '@/hooks/useNearAccount';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { usePublicConfig } from '@/hooks/usePublicConfig';
@@ -50,62 +54,15 @@ export function HomePage() {
   const config = usePublicConfig();
   const toHow = useScrollTo('how');
   const toSample = useScrollTo('sample');
+  const passesOn = usePassesOn();
+  const toPassesTest = useScrollTo('how-to-test-passes');
   // The MCP server lives on this same origin (build ruling 42).
   const mcpAddress = `${typeof window === 'undefined' ? '' : window.location.origin}${MCP_PATH}`;
   const tryDemo = cn(buttonVariants(), 'no-underline hover:text-primary-foreground text-primary-foreground');
 
-  return (
-    <PageShell
-      side="public"
-      bare
-      header={
-        <SiteHeader>
-          <nav aria-label="Home sections" className="flex flex-wrap items-center gap-x-7 gap-y-1 text-[15px] font-medium">
-            <a href="#how" onClick={toHow} className="flex min-h-touch items-center text-foreground no-underline hover:text-primary">
-              How it works
-            </a>
-            <a href="#sample" onClick={toSample} className="flex min-h-touch items-center text-foreground no-underline hover:text-primary">
-              What is sample
-            </a>
-          </nav>
-          <Link to="/seats" className={tryDemo}>
-            Try the demo
-          </Link>
-        </SiteHeader>
-      }
-    >
-      {/* 1. Hero */}
-      <section aria-labelledby="hero-heading" className="mx-auto flex max-w-content flex-wrap items-center gap-14 px-4 pb-[72px] pt-6 sm:px-8 sm:pt-10">
-        <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-[22px]">
-          <p className={cn(label, 'flex items-center gap-2')}>
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent-pink" />
-            An AI agent for local offers, paid with PayPal
-          </p>
-          <h1 id="hero-heading" className="font-display text-[38px] font-extrabold leading-[1.02] tracking-[-0.025em] sm:text-[60px]">
-            The deal that is already on your way.
-          </h1>
-          <p className="max-w-[520px] text-lg leading-[1.55] text-body-text sm:text-[19px]">
-            Nearby reads where your calendar takes you this week, finds one or two offers that fit each stop, and tells you why in a sentence. Say
-            yes once and it pays with PayPal.
-          </p>
-          <div className="flex flex-wrap gap-3.5 pt-1.5">
-            <Link to="/seats" className={cn(tryDemo, 'min-h-[56px] px-7 text-[17px]')}>
-              Try the demo
-              <ArrowRight className="!size-[18px]" strokeWidth={2.4} aria-hidden="true" />
-            </Link>
-            <a
-              href="#how"
-              onClick={toHow}
-              className={cn(buttonVariants({ variant: 'secondary' }), 'min-h-[56px] px-7 text-[17px] text-foreground no-underline hover:text-foreground')}
-            >
-              How it works
-            </a>
-          </div>
-          <p className="text-sm text-secondary-text">No account and no setup. One tap puts you in a seat.</p>
-        </div>
-        <HeroDrawing />
-      </section>
-
+  // Two sides, How the demo works, What is real and what is sample, How to test: as accepted (3.11.1).
+  const paypalSections = (
+    <>
       {/* 2. Two sides */}
       <section aria-labelledby="sides-heading" className="border-y border-border bg-card">
         <div className="mx-auto flex max-w-content flex-col gap-8 px-4 py-[72px] sm:px-8">
@@ -184,6 +141,18 @@ export function HomePage() {
               <Dot tone="primary" />
               Payments are PayPal sandbox payments.
             </li>
+            {passesOn && (
+              <>
+                <li className="flex gap-3">
+                  <Dot tone="accent" />
+                  Passes are NFTs on NEAR testnet. Testnet NEAR has no value.
+                </li>
+                <li className="flex gap-3">
+                  <Dot tone="primary" />
+                  The contract, the agent&rsquo;s key and every transaction are real, on the public testnet, and linked from this page.
+                </li>
+              </>
+            )}
           </ul>
         </section>
         <section aria-labelledby="test-heading" className="flex flex-col justify-between gap-4 rounded-section bg-banner p-8 text-background" data-testid="how-to-test">
@@ -204,7 +173,87 @@ export function HomePage() {
         </section>
       </div>
 
-      <PassesOnNear />
+    </>
+  );
+
+  return (
+    <PageShell
+      side="public"
+      bare
+      header={
+        <SiteHeader>
+          <nav aria-label="Home sections" className="flex flex-wrap items-center gap-x-7 gap-y-1 text-[15px] font-medium">
+            <a href="#how" onClick={toHow} className="flex min-h-touch items-center text-foreground no-underline hover:text-primary">
+              How it works
+            </a>
+            <a href="#sample" onClick={toSample} className="flex min-h-touch items-center text-foreground no-underline hover:text-primary">
+              What is sample
+            </a>
+          </nav>
+          <Link to="/seats" className={tryDemo}>
+            Try the demo
+          </Link>
+        </SiteHeader>
+      }
+    >
+      {/* 1. Hero */}
+      <section aria-labelledby="hero-heading" className="mx-auto flex max-w-content flex-wrap items-center gap-14 px-4 pb-[72px] pt-6 sm:px-8 sm:pt-10">
+        <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-[22px]">
+          <p className={cn(label, 'flex items-center gap-2')}>
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent-pink" />
+            {passesOn ? 'An AI agent for local offers, with passes on NEAR' : 'An AI agent for local offers, paid with PayPal'}
+          </p>
+          <h1 id="hero-heading" className="font-display text-[38px] font-extrabold leading-[1.02] tracking-[-0.025em] sm:text-[60px]">
+            The deal that is already on your way.
+          </h1>
+          <p className="max-w-[520px] text-lg leading-[1.55] text-body-text sm:text-[19px]">
+            {passesOn ? (
+              'Nearby reads where your calendar takes you this week and finds an offer near each stop. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up.'
+            ) : (
+              <>
+                Nearby reads where your calendar takes you this week, finds one or two offers that fit each stop, and tells you why in a sentence. Say
+                yes once and it pays with PayPal.
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-3.5 pt-1.5">
+            <Link to="/seats" className={cn(tryDemo, 'min-h-[56px] px-7 text-[17px]')}>
+              Try the demo
+              <ArrowRight className="!size-[18px]" strokeWidth={2.4} aria-hidden="true" />
+            </Link>
+            <a
+              href={passesOn ? '#how-to-test-passes' : '#how'}
+              onClick={passesOn ? toPassesTest : toHow}
+              className={cn(buttonVariants({ variant: 'secondary' }), 'min-h-[56px] px-7 text-[17px] text-foreground no-underline hover:text-foreground')}
+            >
+              {passesOn ? 'How to test passes' : 'How it works'}
+            </a>
+          </div>
+          <p className="text-sm text-secondary-text">
+            {passesOn ? 'No account, no wallet and no setup. Testnet only: testnet NEAR has no value.' : 'No account and no setup. One tap puts you in a seat.'}
+          </p>
+        </div>
+        <HeroDrawing withPass={passesOn} />
+      </section>
+
+      {passesOn ? (
+        <>
+          {/* Ruling 60: with passes on, passes first, then today's sections under one heading. */}
+          <HowAPassWorks />
+          <PassesOnNear />
+          <div className="mx-auto max-w-content px-4 pb-6 pt-4 sm:px-8">
+            <h2 id="paypal-heading" className={sectionHeading}>
+              Also in Nearby: pay with PayPal
+            </h2>
+          </div>
+          {paypalSections}
+        </>
+      ) : (
+        <>
+          {paypalSections}
+          <PassesOnNear />
+        </>
+      )}
 
       {/* Bring your own agent (build ruling 42): the public MCP server and what an assistant can and cannot do. */}
       <section aria-labelledby="agent-heading" className="mx-auto flex max-w-content flex-col gap-4 px-4 pb-20 sm:px-8" data-testid="bring-your-own-agent">

@@ -123,7 +123,7 @@ export function PassesOnNear() {
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-6">
-        <section aria-labelledby="passes-test-heading" className="flex flex-col gap-4 rounded-section bg-banner p-8 text-background" data-testid="how-to-test-passes">
+        <section id="how-to-test-passes" aria-labelledby="passes-test-heading" className="flex scroll-mt-4 flex-col gap-4 rounded-section bg-banner p-8 text-background" data-testid="how-to-test-passes">
           <h3 id="passes-test-heading" className="font-display text-[26px] font-bold">
             How to test passes
           </h3>
