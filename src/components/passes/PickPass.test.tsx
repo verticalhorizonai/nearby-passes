@@ -59,10 +59,10 @@ afterEach(() => {
 });
 
 describe('a pick with an open pass (REQ-09-03)', () => {
-  it('AC-REQ-09-03-01: shows "Pass: 0.1 testnet NEAR back" and Claim as pass beside Yes, 48 px tall', () => {
+  it('AC-REQ-09-03-01: shows "Pass: You get 0.1 testnet NEAR back when you use this offer." (ruling 71) and Claim as pass beside Yes, 48 px tall', () => {
     const onClaimPass = vi.fn();
     render(<PickCard pick={withPass} onYes={() => undefined} onNotNow={() => undefined} onClaimPass={onClaimPass} />);
-    expect(screen.getByTestId('pick-pass-line')).toHaveTextContent('Pass: 0.1 testnet NEAR back');
+    expect(screen.getByTestId('pick-pass-line')).toHaveTextContent(/^Pass: You get 0.1 testnet NEAR back when you use this offer\.$/);
     const claim = screen.getByRole('button', { name: /^Claim as pass/ });
     const yes = screen.getByRole('button', { name: /^Yes/ });
     expect(claim).toHaveTextContent('Claim as pass');
@@ -85,7 +85,7 @@ describe('a pick with an open pass (REQ-09-03)', () => {
         onClaimPass={() => undefined}
       />,
     );
-    expect(screen.getByTestId('pick-pass-line')).toHaveTextContent('Pass: 0.2 testnet NEAR back');
+    expect(screen.getByTestId('pick-pass-line')).toHaveTextContent(/^Pass: You get 0.2 testnet NEAR back when you use this offer\.$/);
   });
 });
 

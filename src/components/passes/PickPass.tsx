@@ -1,6 +1,7 @@
-// A pass on a pick card (F8.3, F8.5; REQ-09-03, REQ-09-05; AC-REQ-09-03-01, AC-REQ-09-05-01). The pass line "Pass: 0.1
-// testnet NEAR back" (the pass's own amount, from the server), and the claimed state: "Pass claimed" with Show pass,
-// in the bought pick's panel style, which opens the pass as it would be shown at the counter.
+// A pass on a pick card (F8.3, F8.5; REQ-09-03, REQ-09-05; AC-REQ-09-03-01, AC-REQ-09-05-01). The pass line "Pass: You
+// get 0.1 testnet NEAR back when you use this offer." (ruling 71; the pass's own amount, from the server), and the
+// claimed state: "Pass claimed" with Show pass, in the bought pick's panel style, which opens the pass as it would be
+// shown at the counter.
 import { CheckCircle2, Ticket } from 'lucide-react';
 import type { PickPassClaim } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -9,9 +10,9 @@ import { PassDialog } from './PassDetail';
 export function PassLine({ cashBackText, failedMessage }: { cashBackText: string; failedMessage: string | null }) {
   return (
     <div className="flex flex-col gap-0.5" data-testid="pick-pass">
-      <p className="m-0 flex items-center gap-[5px] text-[15px] font-semibold text-primary" data-testid="pick-pass-line">
-        <Ticket className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
-        Pass: {cashBackText} back
+      <p className="m-0 flex items-start gap-[5px] text-[15px] font-semibold text-primary" data-testid="pick-pass-line">
+        <Ticket className="mt-[3px] h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
+        <span>Pass: You get {cashBackText} back when you use this offer.</span>
       </p>
       {failedMessage && <p className="m-0 text-[13px] text-secondary-text">The last claim did not go through: {failedMessage}</p>}
     </div>

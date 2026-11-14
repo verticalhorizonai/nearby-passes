@@ -25,7 +25,8 @@ The hosted demo is at **https://passes.verticalhorizon.ai**. No wallet, no accou
    do**.
 2. Tap **Try the demo**, then the **A shopper's week** card. See **Passes go to** and a short account id in the
    header: a testnet demo account derived for this browser. Tap it to see the full id and its explorer link.
-3. Open **Tuesday 9:30, Client meeting**. See the **Saguaro Bean Co.** pick with **Pass: 0.1 testnet NEAR back**.
+3. Open **Tuesday 9:30, Client meeting**. See the **Saguaro Bean Co.** pick with
+   **Pass: You get 0.1 testnet NEAR back when you use this offer.**
 4. Tap **Claim as pass**, read the sheet, tap **Yes, claim it**. Within about ten seconds see the pass number (for
    example `pass-12`) and a link to the claim transaction on the explorer.
 5. Tap **Switch seat** and choose **Saguaro Bean Co.** In **Redeem a pass**, type the pass number and tap **Look up**,
