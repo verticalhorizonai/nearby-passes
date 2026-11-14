@@ -16,6 +16,7 @@ import { api, isApiError, useApiQuery } from '@/hooks/useApi';
 import { SHOPPER_SEAT, writeSeat } from '@/hooks/useSeat';
 import { formatCents, formatDayTimeRange, formatValidWindow } from '@/client/format';
 import { useProductName } from '@/hooks/useNearAccount';
+import { usePickLabels } from '@/components/picks/pickLabels';
 
 /** The link's own query, passed on as it came: the offer, the place, the start, and an optional title and place name. */
 function linkParams(search: string): Partial<HandoffParams> {
@@ -30,6 +31,7 @@ function linkParams(search: string): Partial<HandoffParams> {
 
 export function HandoffPage() {
   const name = useProductName();
+  const { buy } = usePickLabels();
   const { search } = useLocation();
   const navigate = useNavigate();
   const params = linkParams(search);
@@ -110,7 +112,7 @@ export function HandoffPage() {
               Review in {name}
             </Button>
             <p className="text-center text-[13px] text-secondary-text">
-              Nothing is bought here. In {name} you choose Yes and approve the payment on PayPal.
+              Nothing is bought here. In {name} you choose {buy} and approve the payment on PayPal.
             </p>
           </>
         ) : (

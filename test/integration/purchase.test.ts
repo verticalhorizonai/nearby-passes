@@ -281,6 +281,7 @@ describe('the token gate: 403 and nothing at PayPal', () => {
       const r = await t.request('POST', '/api/purchases', { proposalId, confirmationToken });
       expect(r.status).toBe(403);
       expect(r.json.error.code).toBe('confirmation_token_invalid');
+      expect(r.json.error.message).toBe('A valid confirmation token is required. Tap Yes again.'); // passes off: as accepted (ruling 67)
     }
     expect(orders()).toBe(0);
     expect((await t.db.query('SELECT count(*)::int AS n FROM purchases')).rows[0].n).toBe(0);

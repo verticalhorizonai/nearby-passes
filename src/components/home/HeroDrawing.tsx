@@ -4,6 +4,7 @@
 // card is laid over its lower edge. No stock or third-party image.
 import { Badge } from '@/components/ui/badge';
 import { COLORS } from '@/styles/tokens';
+import { PASSES_PICK_BUTTONS, PICK_BUTTONS } from '@/shared/types';
 
 const BLOCKS: [number, number, number, number][] = [
   [18, 18, 118, 84],
@@ -94,25 +95,26 @@ export function HeroDrawing({ withPass = false }: { withPass?: boolean } = {}) {
         {withPass ? (
           <>
             <div className="text-[13px] font-semibold text-primary">Pass: 0.1 testnet NEAR back</div>
+            {/* Ruling 67: the real card's words and emphasis with a pass, Claim as pass filled and Buy now outlined. */}
             <div className="flex gap-2.5" aria-hidden="true">
-              <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
-                Yes
-              </span>
               <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">
+                {PASSES_PICK_BUTTONS.buy}
+              </span>
+              <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
                 Claim as pass
               </span>
             </div>
             <span className="flex min-h-touch items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold" aria-hidden="true">
-              Not now
+              {PASSES_PICK_BUTTONS.hide}
             </span>
           </>
         ) : (
           <div className="flex gap-2.5" aria-hidden="true">
             <span className="flex min-h-touch flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
-              Yes
+              {PICK_BUTTONS.buy}
             </span>
             <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">
-              Not now
+              {PICK_BUTTONS.hide}
             </span>
           </div>
         )}

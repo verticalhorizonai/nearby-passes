@@ -6,7 +6,7 @@ import type pg from 'pg';
 import type { Db, DbClient } from '../../models/db.js';
 import { withTransaction } from '../../models/db.js';
 import type { PaymentReturnResult, Receipt, StartPaymentResult } from '../../shared/types.js';
-import { PAYMENT_FAILED_MESSAGE } from '../../shared/types.js';
+import { PAYMENT_FAILED_MESSAGE, PICK_BUTTONS } from '../../shared/types.js';
 import { ApiError, badRequest, notFound } from '../../api/http.js';
 import { applyLazyTransitions } from '../proposals/lifecycle.js';
 import { loadProposal } from '../proposals/proposalRows.js';
@@ -15,7 +15,7 @@ import type { PayPalAdapter } from '../paypal/paypalAdapter.js';
 import { centsToDecimalString } from '../money/money.js';
 import { generateRedemptionCode } from './redemptionCode.js';
 
-const tokenRefused = () => new ApiError(403, 'confirmation_token_invalid', 'A valid confirmation token is required. Tap Yes again.');
+const tokenRefused = (buy: string) => new ApiError(403, 'confirmation_token_invalid', `A valid confirmation token is required. Tap ${buy} again.`);
 
 interface PurchaseRow {
   id: string;
@@ -36,6 +36,8 @@ export class PurchaseService {
     private readonly appBaseUrl: string,
     private readonly now: () => Date = () => new Date(),
     private readonly log: (msg: string) => void = () => undefined,
+    /** The pick card's buy button as the visitor sees it: "Buy now" while passes are on (ruling 67). */
+    private readonly buyLabel: string = PICK_BUTTONS.buy,
   ) {}
 
   /** POST /api/purchases: token gate, then the PayPal order from the stored price. */
@@ -45,7 +47,7 @@ export class PurchaseService {
     const claim = await withTransaction(this.db, async (tx) => {
       const now = this.now();
       if (!(await loadProposal(tx, sessionId, proposalId, true))) throw notFound('No proposal exists with this id.');
-      if (!looksLikeToken(token)) throw tokenRefused();
+      if (!looksLikeToken(token)) throw tokenRefused(this.buyLabel);
       const hash = hashToken(token);
       // Atomic claim: exactly one request can pass; bound to this proposal and this session; unexpired; unused.
       const claimed = await tx.query(
@@ -56,10 +58,10 @@ export class PurchaseService {
           RETURNING id`,
         [proposalId, sessionId, hash, now],
       );
-      if (claimed.rowCount !== 1) throw tokenRefused();
+      if (claimed.rowCount !== 1) throw tokenRefused(this.buyLabel);
       await applyLazyTransitions(tx, now, { sessionId, proposalId });
       const p = (await loadProposal(tx, sessionId, proposalId))!;
-      if (p.status !== 'accepted') throw badRequest(`This pick is ${p.status}; tap Yes again.`);
+      if (p.status !== 'accepted') throw badRequest(`This pick is ${p.status}; tap ${this.buyLabel} again.`);
       // A removed offer starts no new payment; one already at PayPal still completes (build ruling 44).
       if (p.offer_removed_at) throw badRequest('The merchant removed this offer.');
       const inflight = await tx.query<PurchaseRow>(

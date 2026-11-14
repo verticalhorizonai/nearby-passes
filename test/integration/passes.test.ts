@@ -459,6 +459,12 @@ describe('REQ-10-04 (Should): passes for any agent over MCP', () => {
     const claim = await req('POST', '/api/passes/claim', { proposalId: h.json.data.proposalId, confirmationToken: acc.json.data.confirmationToken });
     expect(claim.status).toBe(201);
   });
+  it('ruling 67: with passes on, a refused purchase tells the shopper to tap Buy now again', async () => {
+    const proposalId = (await picksFor('Client meeting')).picks[0].proposalId;
+    const pay = await req('POST', '/api/purchases', { proposalId, confirmationToken: 'not-a-token' });
+    expect(pay.status).toBe(403);
+    expect(pay.json.error.message).toBe('A valid confirmation token is required. Tap Buy now again.');
+  });
   it('ruling 63: with passes on, the handoff page\'s notes name NEARby (the visible name)', async () => {
     const far = { offer: SAGUARO.offer, lat: String(OLD_MAIN.lat), lng: String(OLD_MAIN.lng), at: '2027-06-01T09:30:00-07:00' };
     const page = await req('GET', `/api/handoff?${new URLSearchParams(far)}`);

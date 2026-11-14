@@ -18,6 +18,7 @@ import { PickCard, PickCardSkeleton } from './PickCard';
 import { RunSteps } from './AgentStatus';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
 import { useProductName } from '@/hooks/useNearAccount';
+import { usePickLabels } from './pickLabels';
 
 /** The label above the cards (spec 3.11.2; ruling 25, RATIFIED, amending ruling 20). */
 export const CHOSEN_BY_AGENT_LABEL = 'Chosen by the agent';
@@ -46,6 +47,7 @@ function PlainNote({ children, testId }: { children: ReactNode; testId?: string 
 
 export function PicksPanel({ appointmentId, redirect = (url) => window.location.assign(url) }: PicksPanelProps) {
   const name = useProductName();
+  const labels = usePickLabels();
   const picksQuery = useApiQuery<AppointmentPicks>(`/api/appointments/${encodeURIComponent(appointmentId)}/picks`);
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
     try {
       await api.post<Proposal>(`/api/proposals/${encodeURIComponent(pick.proposalId)}/decline`);
       window.setTimeout(() => markDeclined(pick.proposalId), reducedMotion ? 0 : LEAVE_MS);
-      toast('Pick dismissed for this stop.');
+      toast(labels.hidden);
     } catch (e) {
       setLeaving((s) => {
         const next = new Set(s);
@@ -101,10 +103,10 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
         return next;
       });
       if (isApiError(e) && e.status === 400) {
-        toast('This pick can no longer be dismissed.');
+        toast(labels.cannotHide);
         reload();
       } else {
-        toast.error('Could not dismiss this pick. Try again.');
+        toast.error(labels.hideFailed);
       }
     }
   };
@@ -285,7 +287,7 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
         {announce}
       </p>
       {visible.length > 0 && (
-        <p className="pt-4 text-center text-[13px] text-secondary-text">Nothing is bought until you tap Yes and approve it on PayPal.</p>
+        <p className="pt-4 text-center text-[13px] text-secondary-text">{labels.nothingBought}</p>
       )}
       <ConfirmPurchase
         sheet={confirm?.confirmSheet ?? null}

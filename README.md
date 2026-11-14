@@ -184,10 +184,10 @@ the Anthropic Messages API; the PayPal Orders v2 REST API (sandbox); Google Plac
   shown: only matched offers, at most two, at most 25 words. Distances shown are always the code's. While it runs, My
   week and the stop's page show its tool calls live, as they happen ("Reading your week", "Looking up places",
   "Checking 3 offers", "Choosing"), then what it came to ("2 picks", "1 pick", "Nothing fits").
-- **One yes.** Claude has no payment tool. Tapping Yes mints a single-use confirmation token (256 random bits, stored
-  only as a hash, valid for 10 minutes, bound to that pick and that browser). Only the purchase route can create a
-  PayPal order, and only with that token. The amount is the offer's price read from the database, never from the
-  browser or the model.
+- **One yes.** Claude has no payment tool. Tapping **Buy now** (**Yes** with passes off) mints a single-use
+  confirmation token (256 random bits, stored only as a hash, valid for 10 minutes, bound to that pick and that
+  browser). Only the purchase route can create a PayPal order, and only with that token. The amount is the offer's
+  price read from the database, never from the browser or the model.
 - **PayPal.** Orders v2 REST from the server, sandbox only: the app refuses to start unless `PAYPAL_BASE_URL` is the
   sandbox. Create the order, send the shopper to PayPal's sandbox page to approve, capture on return. A second return
   shows the same receipt and captures nothing; a cancel returns the shopper to the pick.
@@ -240,7 +240,7 @@ The tools call no model and no outside service, write nothing, and are rate limi
 a minute). To buy, a person opens `checkout_url` in a browser. That page changes nothing: it shows the offer with its
 Sample badge, the price from NEARby's database, the place and the time, and one button, **Review in NEARby**. The
 button checks again that the offer still fits, adds the stop to that browser's week ("Added by your assistant") with
-the offer as a pick ("Suggested by your assistant"), and opens the stop. From there it is the usual flow: Yes, the
+the offer as a pick ("Suggested by your assistant"), and opens the stop. From there it is the usual flow: Buy now, the
 confirmation sheet, approval on PayPal's sandbox page, the receipt. The pick's sentence is NEARby's own template. The
 `title` and `place` in the link are shown as plain text (at most 80 characters each), in place of "Stop from your
 assistant" and "Near <coordinates>", and are never given to the model. Reset demo removes these stops with their

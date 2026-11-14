@@ -5,6 +5,8 @@
 // Nearby Passes (F8.3 to F8.5; REQ-09-03, REQ-09-05): a pick whose offer has an open pass shows "Pass: 0.1 testnet NEAR
 // back" and Claim as pass beside Yes; once claimed, "Pass claimed" and Show pass, and no Yes, Claim as pass or Not now.
 // A pick with no pass (always so with passes off) is drawn exactly as before.
+// Ruling 67: while passes are on, Yes reads "Buy now" and Not now "Hide pick" (pickLabels.ts); on a card with an open
+// pass, Claim as pass is the filled button and Buy now the outlined one. The order and the heights do not change.
 import { Clock, MapPin } from 'lucide-react';
 import type { Pick } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +16,8 @@ import { cn } from '@/components/ui/cn';
 import { formatCents, formatMiles, formatValidWindow } from '@/client/format';
 import { BoughtReceipt } from './BoughtReceipt';
 import { ClaimedPass, PassLine } from '@/components/passes/PickPass';
+import { usePassesOnDeferred } from '@/hooks/useNearAccount';
+import { pickLabels } from './pickLabels';
 
 interface PickCardProps {
   pick: Pick;
@@ -36,6 +40,10 @@ export function PickCard({ pick, onYes, onNotNow, onClaimPass, busy = false, lea
   const settledAsPass = claim?.status === 'claimed' || claim?.status === 'pending';
   const pass = !pick.purchased && !settledAsPass ? (pick.pass ?? null) : null;
   const canClaim = pass !== null && !!onClaimPass;
+  const passesOn = usePassesOnDeferred();
+  const labels = pickLabels(passesOn);
+  // With a pass to claim, the pass is the filled button (ruling 67); otherwise Buy now (or Yes) is, as accepted.
+  const claimLeads = passesOn && canClaim;
   return (
     <article
       aria-labelledby={headingId}
@@ -98,24 +106,25 @@ export function PickCard({ pick, onYes, onNotNow, onClaimPass, busy = false, lea
       {pick.status === 'accepted' && pick.acceptIntent !== 'pass' && (
         // Yes was tapped and the payment is not finished (3.9.1 proposed -> accepted).
         <p className="text-[13px] font-semibold text-primary" data-testid="pick-status">
-          You said yes to this pick. Tap Yes to pay with PayPal.
+          {labels.payPending}
         </p>
       )}
       <div className={cn('flex gap-2.5', canClaim && 'flex-wrap')}>
         <Button
           type="button"
+          variant={claimLeads ? 'secondary' : 'default'}
           className={cn('h-12 flex-[2_1_0%] text-base', canClaim && 'min-w-[96px]')}
           onClick={() => onYes(pick)}
           disabled={busy || leaving}
-          aria-label={`Yes, ${pick.offerTitle} from ${pick.merchantName}`}
+          aria-label={`${labels.buy}, ${pick.offerTitle} from ${pick.merchantName}`}
         >
-          Yes
+          {labels.buy}
         </Button>
         {canClaim && (
           // Beside Yes (3.6.7). On a phone Not now wraps to its own line so no label is cut.
           <Button
             type="button"
-            variant="secondary"
+            variant={claimLeads ? 'default' : 'secondary'}
             className="h-12 min-w-[140px] flex-[2_1_0%] text-base"
             onClick={() => onClaimPass?.(pick)}
             disabled={busy || leaving}
@@ -131,9 +140,9 @@ export function PickCard({ pick, onYes, onNotNow, onClaimPass, busy = false, lea
           className={cn('h-12 flex-[1_1_0%] text-base', canClaim && 'min-w-[96px]')}
           onClick={() => onNotNow(pick)}
           disabled={busy || leaving}
-          aria-label={`Not now, ${pick.offerTitle} from ${pick.merchantName}`}
+          aria-label={`${labels.hide}, ${pick.offerTitle} from ${pick.merchantName}`}
         >
-          Not now
+          {labels.hide}
         </Button>
         )}
       </div>

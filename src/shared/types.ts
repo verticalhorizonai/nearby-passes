@@ -1052,6 +1052,18 @@ export const PASSES_PRODUCT_NAME = 'NEARby';
 /** The browser tab's title while passes are on. */
 export const PASSES_TAB_TITLE = `${PASSES_PRODUCT_NAME} Passes`;
 
+/**
+ * The pick card's two buttons (ruling 67, the spec owner's decision): "Yes" and "Not now" with passes off, as accepted;
+ * "Buy now" and "Hide pick" while passes are on, where a card can also offer Claim as pass. What each button does is
+ * the same. The principle ("One yes") and the confirm sheets' own buttons keep their words.
+ */
+export interface PickButtonLabels {
+  buy: string;
+  hide: string;
+}
+export const PICK_BUTTONS: PickButtonLabels = { buy: 'Yes', hide: 'Not now' };
+export const PASSES_PICK_BUTTONS: PickButtonLabels = { buy: 'Buy now', hide: 'Hide pick' };
+
 /** Words (Part 2). */
 export const DEMO_ACCOUNT_LABEL = 'Demo account, testnet';
 export const PASS_AGENT_SENTENCE = `${PASSES_PRODUCT_NAME}'s agent claims it for you. It cannot move money.`;

@@ -13,6 +13,7 @@ import { HeroDrawing } from '@/components/home/HeroDrawing';
 import { PassesOnNear } from '@/components/near/PassesOnNear';
 import { HowAPassWorks } from '@/components/near/HowAPassWorks';
 import { usePassesOn, useProductName } from '@/hooks/useNearAccount';
+import { pickLabels } from '@/components/picks/pickLabels';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { usePublicConfig } from '@/hooks/usePublicConfig';
@@ -56,6 +57,7 @@ export function HomePage() {
   const toSample = useScrollTo('sample');
   const passesOn = usePassesOn();
   const name = useProductName();
+  const { buy } = pickLabels(passesOn); // the pick card's buy button (ruling 67)
   const toPassesTest = useScrollTo('how-to-test-passes');
   // The MCP server lives on this same origin (build ruling 42).
   const mcpAddress = `${typeof window === 'undefined' ? '' : window.location.origin}${MCP_PATH}`;
@@ -107,7 +109,11 @@ export function HomePage() {
             One tap puts you in the shopper&rsquo;s week or behind a sample merchant&rsquo;s counter.
           </Step>
           <Step n={2} title="Say yes to a pick">
-            As the shopper, say yes to a pick and approve it on PayPal&rsquo;s sandbox page.
+            {passesOn ? (
+              <>As the shopper, tap {buy} on a pick and approve it on PayPal&rsquo;s sandbox page.</>
+            ) : (
+              <>As the shopper, say yes to a pick and approve it on PayPal&rsquo;s sandbox page.</>
+            )}
           </Step>
           <Step n={3} title="Watch the sale arrive">
             Switch seat to that merchant and see the sale on its dashboard. Open the merchant in a second window to watch it arrive.
@@ -287,7 +293,7 @@ export function HomePage() {
           </li>
           <li className="flex gap-3">
             <Dot tone="accent" />
-            <span>Neither tool can buy. Your assistant hands you a link; you open it, tap Yes in {name} and approve the payment on PayPal.</span>
+            <span>Neither tool can buy. Your assistant hands you a link; you open it, tap {buy} in {name} and approve the payment on PayPal.</span>
           </li>
         </ul>
       </section>
