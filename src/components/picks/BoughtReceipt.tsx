@@ -11,8 +11,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { api } from '@/hooks/useApi';
 import { ReceiptCard } from './ReceiptCard';
+import { useProductName } from '@/hooks/useNearAccount';
 
 export function BoughtReceipt({ proposalId, offerTitle }: { proposalId: string; offerTitle: string }) {
+  const name = useProductName();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -46,7 +48,7 @@ export function BoughtReceipt({ proposalId, offerTitle }: { proposalId: string; 
           {receipt ? (
             <ReceiptCard receipt={receipt} />
           ) : failed ? (
-            <ErrorState title="The receipt did not load" message="Nearby could not load this receipt just now. Try again in a moment." onRetry={() => void load()} />
+            <ErrorState title="The receipt did not load" message={`${name} could not load this receipt just now. Try again in a moment.`} onRetry={() => void load()} />
           ) : (
             <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading the receipt">
               <Skeleton className="h-10 w-40 rounded-tile bg-tint" />

@@ -10,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, useApiQuery } from '@/hooks/useApi';
+import { useProductName } from '@/hooks/useNearAccount';
 
 function appointmentsText(n: number): string {
   return n === 1 ? '1 upcoming appointment with an address' : `${n} upcoming appointments with an address`;
 }
 
 export function ConnectPage() {
+  const name = useProductName();
   const connection = useApiQuery<CalendarConnection>('/api/calendar/connection');
   const [connecting, setConnecting] = useState(false);
   const [connectFailed, setConnectFailed] = useState(false);
@@ -70,7 +72,7 @@ export function ConnectPage() {
       <Card className="flex flex-col gap-4 rounded-section p-6">
         <h2 className="font-display text-2xl font-bold">Use the demo calendar</h2>
         <p className="text-body-text">
-          The demo calendar holds a week of sample appointments around Tucson. Nearby reads only each event&rsquo;s time and place, never
+          The demo calendar holds a week of sample appointments around Tucson. {name} reads only each event&rsquo;s time and place, never
           descriptions or attendees.
         </p>
         <Button type="button" size="lg" className="self-start" onClick={connect} disabled={connecting}>
@@ -93,7 +95,7 @@ export function ConnectPage() {
         <div className="flex flex-col gap-2">
           <p className="text-label uppercase text-secondary-text">Step 1</p>
           <h1 className="font-display text-4xl font-bold leading-tight">Connect a calendar</h1>
-          <p className="text-lg text-body-text">Nearby looks at where your week takes you and finds one or two offers that fit each stop.</p>
+          <p className="text-lg text-body-text">{name} looks at where your week takes you and finds one or two offers that fit each stop.</p>
         </div>
         {body}
       </div>

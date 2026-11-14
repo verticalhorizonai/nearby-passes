@@ -215,6 +215,7 @@ describe('the checkout handoff', () => {
     t.clock.set(new Date('2026-11-18T15:00:00Z'));
     const passed = await t.request('POST', '/api/handoff', link(), {}, 'h3');
     expect(passed.status).toBe(409);
+    expect(passed.json.error.message).toBe('That time has passed, or it is more than 7 days away, so Nearby cannot add this stop.'); // passes off: as accepted
     t.clock.set(DEFAULT_NOW);
     const far = await t.request('POST', '/api/handoff', link({ lat: '33.4484', lng: '-112.074' }), {}, 'h3');
     expect(far.status).toBe(400);

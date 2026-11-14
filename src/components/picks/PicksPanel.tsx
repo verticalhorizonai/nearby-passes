@@ -17,6 +17,7 @@ import { ClaimPassSheet } from '@/components/passes/ClaimPassSheet';
 import { PickCard, PickCardSkeleton } from './PickCard';
 import { RunSteps } from './AgentStatus';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
+import { useProductName } from '@/hooks/useNearAccount';
 
 /** The label above the cards (spec 3.11.2; ruling 25, RATIFIED, amending ruling 20). */
 export const CHOSEN_BY_AGENT_LABEL = 'Chosen by the agent';
@@ -44,6 +45,7 @@ function PlainNote({ children, testId }: { children: ReactNode; testId?: string 
 }
 
 export function PicksPanel({ appointmentId, redirect = (url) => window.location.assign(url) }: PicksPanelProps) {
+  const name = useProductName();
   const picksQuery = useApiQuery<AppointmentPicks>(`/api/appointments/${encodeURIComponent(appointmentId)}/picks`);
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -217,7 +219,7 @@ export function PicksPanel({ appointmentId, redirect = (url) => window.location.
       </div>
     );
   } else if (error) {
-    body = <ErrorState title="The picks did not load" message="Nearby could not find picks for this stop just now. Try again in a moment." onRetry={reload} />;
+    body = <ErrorState title="The picks did not load" message={`${name} could not find picks for this stop just now. Try again in a moment.`} onRetry={reload} />;
   } else if (data) {
     visible = data.picks.filter((p) => p.status !== 'declined');
     if (data.noMatch) {

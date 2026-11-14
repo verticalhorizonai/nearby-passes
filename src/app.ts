@@ -34,7 +34,7 @@ import { registerHandoffRoutes } from './api/handoffRoutes.js';
 import { OfferSearch } from './services/offersMcp/offerSearch.js';
 import { WindowLimiter } from './services/offersMcp/windowLimiter.js';
 import { HandoffService } from './services/handoff/handoffService.js';
-import { HANDOFFS_PER_SESSION_PER_HOUR, MCP_REQUESTS_PER_ADDRESS_PER_MINUTE } from './shared/types.js';
+import { HANDOFFS_PER_SESSION_PER_HOUR, MCP_REQUESTS_PER_ADDRESS_PER_MINUTE, PASSES_PRODUCT_NAME, PRODUCT_NAME } from './shared/types.js';
 import type { NearAdapter } from './services/near/adapter.js';
 import type { NearConfig } from './services/near/nearConfig.js';
 import { PassService } from './services/passes/passService.js';
@@ -100,7 +100,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance & { servi
     purchases: new PurchaseService(deps.db, deps.paypal, deps.config.appBaseUrl, now, log),
     merchants: new MerchantDirectory(deps.db, deps.calendar, now),
     offerSearch: new OfferSearch(deps.db, deps.config.appBaseUrl, now),
-    handoff: new HandoffService(deps.db, new WindowLimiter(HANDOFFS_PER_SESSION_PER_HOUR, 3_600_000, () => now().getTime()), now),
+    handoff: new HandoffService(deps.db, new WindowLimiter(HANDOFFS_PER_SESSION_PER_HOUR, 3_600_000, () => now().getTime()), now, deps.near ? PASSES_PRODUCT_NAME : PRODUCT_NAME), // ruling 63
     passes: deps.near ? new PassService(deps.db, deps.near.adapter, deps.near.config, deps.config.appBaseUrl, deps.config.repoUrl, now) : null,
   };
 

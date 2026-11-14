@@ -3,6 +3,7 @@
 // see `data`, and a failure is thrown as an ApiError carrying the status, the code, the message and any field errors.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiErrorCode, ApiErrorResponse, ApiResponse, FieldError } from '@/shared/types';
+import { currentProductName } from './productName';
 
 /** Codes the client adds for failures that never reached the server's envelope. */
 export type ClientErrorCode = ApiErrorCode | 'network_error' | 'bad_response';
@@ -43,14 +44,14 @@ export async function apiRequest<T>(method: Method, path: string, body?: unknown
   try {
     res = await fetch(path, init);
   } catch {
-    throw new ApiError(0, 'network_error', 'Could not reach Nearby. Check the connection and try again.');
+    throw new ApiError(0, 'network_error', `Could not reach ${currentProductName()}. Check the connection and try again.`);
   }
 
   let json: unknown;
   try {
     json = await res.json();
   } catch {
-    throw new ApiError(res.status, 'bad_response', 'Nearby sent a reply it could not read.');
+    throw new ApiError(res.status, 'bad_response', `${currentProductName()} sent a reply it could not read.`);
   }
 
   if (json && typeof json === 'object' && 'success' in json) {
@@ -60,7 +61,7 @@ export async function apiRequest<T>(method: Method, path: string, body?: unknown
       throw new ApiError(res.status, env.error.code, env.error.message, env.error.details?.fieldErrors ?? []);
     }
   }
-  throw new ApiError(res.status, 'bad_response', 'Nearby sent a reply it could not read.');
+  throw new ApiError(res.status, 'bad_response', `${currentProductName()} sent a reply it could not read.`);
 }
 
 export const api = {

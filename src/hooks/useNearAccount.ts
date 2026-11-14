@@ -6,6 +6,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import type { NearAccountResult } from '@/shared/types';
 import { api } from './useApi';
+import { productName, setPassesOnNow } from './productName';
 
 const PASSES_OFF: NearAccountResult = {
   passesEnabled: false,
@@ -40,6 +41,7 @@ function load(): Promise<void> {
       if (mine !== generation) return;
       store.value = r;
       store.inFlight = null;
+      setPassesOnNow(r.passesEnabled === true);
       emit();
     });
   return store.inFlight;
@@ -86,4 +88,9 @@ export function usePassesOnDeferred(): boolean {
     return () => clearTimeout(t);
   }, []);
   return value?.passesEnabled === true;
+}
+
+/** The product's visible name for a visitor: "NEARby" while passes are on, "Nearby" otherwise (ruling 63). */
+export function useProductName(): string {
+  return productName(usePassesOnDeferred());
 }

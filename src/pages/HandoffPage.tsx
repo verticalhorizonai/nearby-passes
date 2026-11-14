@@ -1,6 +1,6 @@
 // The checkout handoff page (build ruling 42): where an outside assistant's checkout_url lands. Opening it changes
 // nothing: it shows the offer with its Sample badge, the price from Nearby's database, the place and the time, and one
-// button, "Review in Nearby". The button adds the stop and its pick to this browser's session and opens the stop's
+// button, "Review in Nearby" ("NEARby" with passes on, ruling 63). The button adds the stop and its pick to this browser's session and opens the stop's
 // page, where the person decides with Yes and approves on PayPal, as for any pick. Everything from the link is shown
 // as text.
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { api, isApiError, useApiQuery } from '@/hooks/useApi';
 import { SHOPPER_SEAT, writeSeat } from '@/hooks/useSeat';
 import { formatCents, formatDayTimeRange, formatValidWindow } from '@/client/format';
+import { useProductName } from '@/hooks/useNearAccount';
 
 /** The link's own query, passed on as it came: the offer, the place, the start, and an optional title and place name. */
 function linkParams(search: string): Partial<HandoffParams> {
@@ -28,6 +29,7 @@ function linkParams(search: string): Partial<HandoffParams> {
 }
 
 export function HandoffPage() {
+  const name = useProductName();
   const { search } = useLocation();
   const navigate = useNavigate();
   const params = linkParams(search);
@@ -63,7 +65,7 @@ export function HandoffPage() {
     body = (
       <ErrorState
         title="This link does not open an offer"
-        message={preview.error?.status === 404 ? 'The offer in this link is not in Nearby.' : 'The link is missing a part or has one Nearby cannot read.'}
+        message={preview.error?.status === 404 ? `The offer in this link is not in ${name}.` : `The link is missing a part or has one ${name} cannot read.`}
       >
         <Link to="/week" className="flex min-h-touch items-center px-2 font-semibold">
           Open My week
@@ -105,10 +107,10 @@ export function HandoffPage() {
         {p.fits ? (
           <>
             <Button type="button" className="w-full" onClick={() => void review()} disabled={busy} data-testid="review-in-nearby">
-              Review in Nearby
+              Review in {name}
             </Button>
             <p className="text-center text-[13px] text-secondary-text">
-              Nothing is bought here. In Nearby you choose Yes and approve the payment on PayPal.
+              Nothing is bought here. In {name} you choose Yes and approve the payment on PayPal.
             </p>
           </>
         ) : (
@@ -128,7 +130,7 @@ export function HandoffPage() {
       <div className="mx-auto flex max-w-[560px] flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="font-display text-[28px] font-bold leading-tight">From your assistant</h1>
-          <p className="text-body-text">Your assistant found this offer with Nearby. Review it here; nothing is added until you choose to.</p>
+          <p className="text-body-text">Your assistant found this offer with {name}. Review it here; nothing is added until you choose to.</p>
         </div>
         {body}
       </div>

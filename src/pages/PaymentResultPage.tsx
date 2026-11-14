@@ -14,12 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/hooks/useApi';
 import { clearPendingPayment, readPendingPayment } from '@/client/pendingPayment';
+import { useProductName } from '@/hooks/useNearAccount';
 
 type Kind = 'return' | 'cancel';
 
 type View = { state: 'loading' } | { state: 'receipt'; receipt: Receipt } | { state: 'error' } | { state: 'missing' };
 
 export function PaymentResultPage({ kind }: { kind: Kind }) {
+  const name = useProductName();
   const [params] = useSearchParams();
   const proposalId = params.get('proposalId') ?? '';
   const navigate = useNavigate();
@@ -76,7 +78,7 @@ export function PaymentResultPage({ kind }: { kind: Kind }) {
         message={
           view.state === 'missing'
             ? 'Go back to My week and open the pick again.'
-            : 'Nearby could not confirm the payment just now. If it went through, the receipt shows when you open this page again.'
+            : `${name} could not confirm the payment just now. If it went through, the receipt shows when you open this page again.`
         }
         onRetry={view.state === 'error' ? () => window.location.reload() : undefined}
       >

@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import type { Db } from '../../models/db.js';
 import { withTransaction } from '../../models/db.js';
 import type { HandoffParams, HandoffPreview, HandoffResult } from '../../shared/types.js';
-import { HANDOFF_DEFAULT_TITLE, HANDOFFS_PER_SESSION_PER_HOUR } from '../../shared/types.js';
+import { HANDOFF_DEFAULT_TITLE, HANDOFFS_PER_SESSION_PER_HOUR, PRODUCT_NAME } from '../../shared/types.js';
 import { cleanPlaceName, cleanStopTitle, coordinatesText } from './linkText.js';
 import { ApiError, badRequest, notFound } from '../../api/http.js';
 import { applyLazyTransitions } from '../proposals/lifecycle.js';
@@ -29,7 +29,8 @@ import {
 } from '../offersMcp/offerSearch.js';
 
 export const NO_LONGER_FITS_NOTE = 'This offer no longer fits that place and time.';
-export const TIME_PASSED_NOTE = 'That time has passed, or it is more than 7 days away, so Nearby cannot add this stop.';
+/** The note when the stop's time is outside the window, with the product's visible name (ruling 63). */
+export const timePassedNote = (name: string): string => `That time has passed, or it is more than 7 days away, so ${name} cannot add this stop.`;
 
 /** A title from a link: text only (control and format characters removed, spaces collapsed), at most 80 characters. */
 export function cleanTitle(raw: unknown): string {
@@ -62,6 +63,8 @@ export class HandoffService {
     private readonly db: Db,
     private readonly limiter: WindowLimiter,
     private readonly now: () => Date = () => new Date(),
+    /** The visible name in the notes the handoff page shows: "NEARby" with passes on (ruling 63). */
+    private readonly productName: string = PRODUCT_NAME,
   ) {}
 
   /** The offer must be one this session may see: a seed offer or its own (build ruling 44). */
@@ -79,7 +82,7 @@ export class HandoffService {
     const { facts, stop, title, address } = await this.parse(sessionId, p);
     let note: string | null = null;
     if (!inDemoArea(stop.location)) note = OUT_OF_AREA_NOTE;
-    else if (!inWindow(stop.startsAt, this.now())) note = TIME_PASSED_NOTE;
+    else if (!inWindow(stop.startsAt, this.now())) note = timePassedNote(this.productName);
     else if (!showable((await matchStop(this.db, stop, sessionId)).candidates, facts.id)) note = NO_LONGER_FITS_NOTE;
     return {
       offerId: facts.id,
@@ -127,7 +130,7 @@ export class HandoffService {
       }
 
       // Re-check with the app's matching code that the offer is still a candidate that may be shown (3.5).
-      if (!inWindow(stop.startsAt, now)) throw new ApiError(409, 'offer_unavailable', TIME_PASSED_NOTE);
+      if (!inWindow(stop.startsAt, now)) throw new ApiError(409, 'offer_unavailable', timePassedNote(this.productName));
       const bought = appointmentId
         ? await tx.query<{ offer_id: string }>(
             `SELECT DISTINCT u.offer_id FROM purchases u JOIN proposals p ON p.id = u.proposal_id

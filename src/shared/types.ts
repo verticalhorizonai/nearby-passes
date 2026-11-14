@@ -1042,9 +1042,19 @@ export const PASS_CLAIMS_PER_HOUR = 60;
 export const PASS_FUNDINGS_PER_SESSION_PER_HOUR = 3;
 export const PASS_REDEMPTIONS_PER_SESSION_PER_HOUR = 20;
 
+/**
+ * The product's visible name (ruling 63, the spec owner's naming decision): "NEARby" while passes are on, "Nearby"
+ * with passes off. A wordmark only: the repository, the address, packages, the MCP server and its text, routes, the
+ * database and the chain keep "Nearby", and so do spoken names (aria-label), so a screen reader does not spell it.
+ */
+export const PRODUCT_NAME = 'Nearby';
+export const PASSES_PRODUCT_NAME = 'NEARby';
+/** The browser tab's title while passes are on. */
+export const PASSES_TAB_TITLE = `${PASSES_PRODUCT_NAME} Passes`;
+
 /** Words (Part 2). */
 export const DEMO_ACCOUNT_LABEL = 'Demo account, testnet';
-export const PASS_AGENT_SENTENCE = "Nearby's agent claims it for you. It cannot move money.";
+export const PASS_AGENT_SENTENCE = `${PASSES_PRODUCT_NAME}'s agent claims it for you. It cannot move money.`;
 export const MERCHANT_PASSES_NOT_SET_UP = 'Passes are set up for four sample merchants in this demo.';
 export const PASS_SAMPLE_LINE = 'Sample merchant. Testnet only.';
 

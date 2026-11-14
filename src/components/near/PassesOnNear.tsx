@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { AgentKey, AgentKeysResult } from '@/shared/types';
+import { PASSES_PRODUCT_NAME } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -129,7 +130,7 @@ export function PassesOnNear() {
           </h3>
           <ol className="m-0 flex list-none flex-col gap-3 p-0 text-on-dark-muted">
             {[
-              'Take the shopper seat. No wallet and no sign-in: Nearby makes a testnet account for this browser.',
+              `Take the shopper seat. No wallet and no sign-in: ${PASSES_PRODUCT_NAME} makes a testnet account for this browser.`,
               'Open the Tuesday 9:30 stop and claim the Saguaro Bean pass.',
               'Switch seat to Saguaro Bean Co., type the pass number and redeem.',
               'Follow the links to see each transaction on the explorer.',

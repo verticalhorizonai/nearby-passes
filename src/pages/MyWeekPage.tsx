@@ -18,7 +18,7 @@ import { cn } from '@/components/ui/cn';
 import { api, useApiQuery } from '@/hooks/useApi';
 import { usePicksPrefetch } from '@/hooks/usePicksPrefetch';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
-import { usePassesOn } from '@/hooks/useNearAccount';
+import { usePassesOn, useProductName } from '@/hooks/useNearAccount';
 import { LiveStep, SettledChip, settledLabel } from '@/components/picks/AgentStatus';
 import { SKIP_REASON_TEXT, dayKey, formatDayHeading, formatEventWhen, formatTimeRange } from '@/client/format';
 
@@ -38,6 +38,7 @@ export function MyWeekPage() {
   const connection = useApiQuery<CalendarConnection>('/api/calendar/connection');
   const week = useApiQuery<UpcomingAppointmentsResult>('/api/appointments/upcoming');
   const passesOn = usePassesOn();
+  const name = useProductName();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   // Picks for every appointment that is on, fetched in the background while the shopper reads the week.
@@ -182,7 +183,7 @@ export function MyWeekPage() {
                               Added by your assistant
                             </span>
                           )}
-                          {!a.enabled && <span className="block text-[13px] text-secondary-text">Off. Nearby skips this one.</span>}
+                          {!a.enabled && <span className="block text-[13px] text-secondary-text">Off. {name} skips this one.</span>}
                         </span>
                         <ChevronRight className="h-5 w-5 flex-none text-secondary-text" aria-hidden="true" />
                       </Link>

@@ -10,10 +10,12 @@ import { ResetDemoButton } from '@/components/seats/ResetDemoButton';
 import { ShopperSeatCard } from '@/components/seats/ShopperSeatCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/useApi';
+import { useProductName } from '@/hooks/useNearAccount';
 
 const label = 'text-label uppercase text-secondary-text';
 
 export function ChooseSeatPage() {
+  const name = useProductName();
   const seats = useApiQuery<ChooseSeatData>('/api/seats');
 
   return (
@@ -29,7 +31,7 @@ export function ChooseSeatPage() {
       <div className="flex flex-col gap-2.5">
         <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-[-0.02em]">Choose a seat</h1>
         <p className="max-w-[640px] text-lg text-body-text">
-          A seat is not a sign-in. It only picks which side of Nearby you see, and you can switch at any time.
+          A seat is not a sign-in. It only picks which side of {name} you see, and you can switch at any time.
         </p>
       </div>
 

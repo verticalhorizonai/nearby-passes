@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/ui/cn';
 import { formatCents, formatDayShortTime } from '@/client/format';
 import { useSalesFeed } from '@/hooks/useSalesFeed';
+import { useProductName } from '@/hooks/useNearAccount';
 
 interface SalesFeedPanelProps {
   merchantId: string;
@@ -15,6 +16,7 @@ interface SalesFeedPanelProps {
 }
 
 export function SalesFeedPanel({ merchantId, intervalMs, highlightMs }: SalesFeedPanelProps) {
+  const name = useProductName();
   const { items, fresh, failing } = useSalesFeed(merchantId, intervalMs, highlightMs);
 
   return (
@@ -31,7 +33,7 @@ export function SalesFeedPanel({ merchantId, intervalMs, highlightMs }: SalesFee
 
       {items === null ? (
         failing ? (
-          <p className="text-body-text">The sales feed is not reachable right now. Nearby keeps trying every few seconds.</p>
+          <p className="text-body-text">The sales feed is not reachable right now. {name} keeps trying every few seconds.</p>
         ) : (
           <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading sales" data-testid="sales-skeleton">
             <Skeleton className="h-[60px] rounded-panel" />

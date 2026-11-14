@@ -1,8 +1,8 @@
 // The demonstration banner: one slim banner at the top of every page, with the spec's full text on every width,
 // phones included (spec 3.11.1; build ruling 14; REQ-05-05). With passes on it adds one sentence, and the browser tab
-// reads "Nearby Passes" (ruling 60, PROPOSED); with passes off both are exactly as accepted.
+// reads "NEARby Passes" (rulings 60 and 63); with passes off both are exactly as accepted.
 import { useEffect } from 'react';
-import { DEMONSTRATION_BANNER_TEXT } from '@/shared/types';
+import { DEMONSTRATION_BANNER_TEXT, PASSES_TAB_TITLE, PRODUCT_NAME } from '@/shared/types';
 import { usePassesOnDeferred } from '@/hooks/useNearAccount';
 
 export const PASSES_BANNER_SENTENCE = 'Passes run on NEAR testnet.';
@@ -11,7 +11,7 @@ export function DemoBanner() {
   const passesOn = usePassesOnDeferred();
   useEffect(() => {
     // The banner is on every page, so the tab's title follows passes here (index.html says "Nearby").
-    document.title = passesOn ? 'Nearby Passes' : 'Nearby';
+    document.title = passesOn ? PASSES_TAB_TITLE : PRODUCT_NAME;
   }, [passesOn]);
   return (
     <div

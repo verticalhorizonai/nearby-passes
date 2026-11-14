@@ -123,7 +123,7 @@ describe('REQ-09-04, REQ-09-07: the yes and the claim (spec 3.6.9 tests 1 and 2)
     const { proposalId, acc } = await acceptPass();
     expect(acc.status).toBe(200);
     const account = (await req('GET', '/api/near/account')).json.data.accountId;
-    expect(acc.json.data).toMatchObject({ intent: 'pass', passSheet: { merchantName: 'Saguaro Bean Co.', merchantIsSample: true, cashBackText: '0.1 testnet NEAR', receivingAccountId: account, agentSentence: "Nearby's agent claims it for you. It cannot move money." } });
+    expect(acc.json.data).toMatchObject({ intent: 'pass', passSheet: { merchantName: 'Saguaro Bean Co.', merchantIsSample: true, cashBackText: '0.1 testnet NEAR', receivingAccountId: account, agentSentence: "NEARby's agent claims it for you. It cannot move money." } });
     expect((await t.db.query('SELECT accept_intent FROM proposals WHERE id = $1', [proposalId])).rows[0].accept_intent).toBe('pass');
     const bad = await req('POST', `/api/proposals/${proposalId}/accept`, { intent: 'card' });
     expect(bad.status).toBe(400);
@@ -458,6 +458,14 @@ describe('REQ-10-04 (Should): passes for any agent over MCP', () => {
     const acc = await req('POST', `/api/proposals/${h.json.data.proposalId}/accept`, { intent: 'pass' });
     const claim = await req('POST', '/api/passes/claim', { proposalId: h.json.data.proposalId, confirmationToken: acc.json.data.confirmationToken });
     expect(claim.status).toBe(201);
+  });
+  it('ruling 63: with passes on, the handoff page\'s notes name NEARby (the visible name)', async () => {
+    const far = { offer: SAGUARO.offer, lat: String(OLD_MAIN.lat), lng: String(OLD_MAIN.lng), at: '2027-06-01T09:30:00-07:00' };
+    const page = await req('GET', `/api/handoff?${new URLSearchParams(far)}`);
+    expect(page.json.data.note).toBe('That time has passed, or it is more than 7 days away, so NEARby cannot add this stop.');
+    const post = await req('POST', '/api/handoff', far);
+    expect(post.status).toBe(409);
+    expect(post.json.error.message).toBe('That time has passed, or it is more than 7 days away, so NEARby cannot add this stop.');
   });
 });
 

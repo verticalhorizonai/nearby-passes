@@ -39,7 +39,7 @@ describe('the home page with passes on (ruling 60)', () => {
   it('the hero leads with passes: eyebrow, text, line, the two buttons, and the example card with the pass', async () => {
     await renderHome(ON);
     await screen.findByText('An AI agent for local offers, with passes on NEAR');
-    expect(screen.getByText(/^Nearby reads where your calendar takes you this week and finds an offer near each stop\. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/^NEARby reads where your calendar takes you this week and finds an offer near each stop\. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up\.$/)).toBeInTheDocument();
     expect(screen.getByText('No account, no wallet and no setup. Testnet only: testnet NEAR has no value.')).toBeInTheDocument();
     const hero = screen.getByRole('heading', { level: 1 }).closest('section')!;
     expect(within(hero).getAllByRole('link', { name: /Try the demo/ })[0]).toHaveAttribute('href', '/seats');
@@ -59,7 +59,7 @@ describe('the home page with passes on (ruling 60)', () => {
     const at = (t: string) => order.indexOf(t);
     expect(at('How a pass works')).toBe(0);
     expect(at('Passes on NEAR')).toBe(1);
-    expect(at('Also in Nearby: pay with PayPal')).toBe(2);
+    expect(at('Also in the app: pay with PayPal')).toBe(2);
     expect(at('A shopper says yes. A shop sees the sale.')).toBeGreaterThan(2);
     expect(at('Three steps, about two minutes.')).toBeGreaterThan(at('A shopper says yes. A shop sees the sale.'));
     expect(at('Bring your own agent')).toBe(order.length - 1);
@@ -75,7 +75,7 @@ describe('the home page with passes on (ruling 60)', () => {
     expect(sample).toHaveTextContent('Passes are NFTs on NEAR testnet. Testnet NEAR has no value.');
     expect(sample).toHaveTextContent('The contract, the agent’s key and every transaction are real, on the public testnet, and linked from this page.');
     await waitFor(() => expect(screen.getByRole('note', { name: 'Demonstration notice' })).toHaveTextContent(`${DEMONSTRATION_BANNER_TEXT} Passes run on NEAR testnet.`));
-    await waitFor(() => expect(document.title).toBe('Nearby Passes'));
+    await waitFor(() => expect(document.title).toBe('NEARby Passes'));
   });
 });
 

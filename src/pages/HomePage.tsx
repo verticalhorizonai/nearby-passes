@@ -12,7 +12,7 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HeroDrawing } from '@/components/home/HeroDrawing';
 import { PassesOnNear } from '@/components/near/PassesOnNear';
 import { HowAPassWorks } from '@/components/near/HowAPassWorks';
-import { usePassesOn } from '@/hooks/useNearAccount';
+import { usePassesOn, useProductName } from '@/hooks/useNearAccount';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { usePublicConfig } from '@/hooks/usePublicConfig';
@@ -55,6 +55,7 @@ export function HomePage() {
   const toHow = useScrollTo('how');
   const toSample = useScrollTo('sample');
   const passesOn = usePassesOn();
+  const name = useProductName();
   const toPassesTest = useScrollTo('how-to-test-passes');
   // The MCP server lives on this same origin (build ruling 42).
   const mcpAddress = `${typeof window === 'undefined' ? '' : window.location.origin}${MCP_PATH}`;
@@ -208,10 +209,10 @@ export function HomePage() {
           </h1>
           <p className="max-w-[520px] text-lg leading-[1.55] text-body-text sm:text-[19px]">
             {passesOn ? (
-              'Nearby reads where your calendar takes you this week and finds an offer near each stop. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up.'
+              `${name} reads where your calendar takes you this week and finds an offer near each stop. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up.`
             ) : (
               <>
-                Nearby reads where your calendar takes you this week, finds one or two offers that fit each stop, and tells you why in a sentence. Say
+                {name} reads where your calendar takes you this week, finds one or two offers that fit each stop, and tells you why in a sentence. Say
                 yes once and it pays with PayPal.
               </>
             )}
@@ -243,7 +244,7 @@ export function HomePage() {
           <PassesOnNear />
           <div className="mx-auto max-w-content px-4 pb-6 pt-4 sm:px-8">
             <h2 id="paypal-heading" className={sectionHeading}>
-              Also in Nearby: pay with PayPal
+              Also in the app: pay with PayPal
             </h2>
           </div>
           {paypalSections}
@@ -264,7 +265,7 @@ export function HomePage() {
           </h2>
         </div>
         <p className="max-w-[720px] text-body-text">
-          Any assistant that speaks MCP can search Nearby&rsquo;s sample offers. Add this address to your MCP client as a Streamable HTTP
+          Any assistant that speaks MCP can search {name}&rsquo;s sample offers. Add this address to your MCP client as a Streamable HTTP
           server; there is no sign-in.
         </p>
         <code className="block max-w-full self-start overflow-x-auto rounded-panel border border-border bg-card px-4 py-3 text-[15px] font-semibold" data-testid="mcp-address">
@@ -274,7 +275,7 @@ export function HomePage() {
           <li className="flex gap-3">
             <Dot tone="primary" />
             <span>
-              <strong className="font-semibold text-foreground">find_offers_near</strong> gives the offers Nearby would show for a place and a
+              <strong className="font-semibold text-foreground">find_offers_near</strong> gives the offers {name} would show for a place and a
               start time, matched by the same rules as the app.
             </span>
           </li>
@@ -286,7 +287,7 @@ export function HomePage() {
           </li>
           <li className="flex gap-3">
             <Dot tone="accent" />
-            <span>Neither tool can buy. Your assistant hands you a link; you open it, tap Yes in Nearby and approve the payment on PayPal.</span>
+            <span>Neither tool can buy. Your assistant hands you a link; you open it, tap Yes in {name} and approve the payment on PayPal.</span>
           </li>
         </ul>
       </section>

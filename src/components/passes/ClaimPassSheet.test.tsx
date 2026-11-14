@@ -125,7 +125,7 @@ describe('Claim as pass (REQ-09-04)', () => {
     expect(sheet).toHaveTextContent('Expires');
     expect(sheet).toHaveTextContent('Thu, Nov 19, 9:30 AM');
     expect(within(sheet).getByTestId('claim-receiving-account')).toHaveTextContent(ACCOUNT);
-    expect(within(sheet).getByTestId('claim-agent-sentence')).toHaveTextContent("Nearby's agent claims it for you. It cannot move money.");
+    expect(within(sheet).getByTestId('claim-agent-sentence')).toHaveTextContent("NEARby's agent claims it for you. It cannot move money.");
     expect(within(sheet).getByRole('button', { name: 'Yes, claim it' })).toHaveClass('h-12');
     const notNow = within(sheet).getByRole('button', { name: 'Not now' });
     expect(notNow).toHaveClass('h-12');

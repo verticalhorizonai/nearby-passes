@@ -5,7 +5,7 @@
 import { useRef, useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { DEMO_ACCOUNT_LABEL } from '@/shared/types';
+import { DEMO_ACCOUNT_LABEL, PASSES_PRODUCT_NAME } from '@/shared/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useNearAccount } from '@/hooks/useNearAccount';
 import { ExplorerLink } from '@/components/passes/PassDetail';
@@ -59,7 +59,7 @@ export function AccountChip() {
           <DialogTitle>Where your passes go</DialogTitle>
           <DialogDescription>
             {source === 'demo'
-              ? 'Nearby made this NEAR testnet account for this browser. You need no wallet, and there is nothing to sign.'
+              ? `${PASSES_PRODUCT_NAME} made this NEAR testnet account for this browser. You need no wallet, and there is nothing to sign.`
               : 'Your NEAR testnet wallet account receives the passes you claim.'}
           </DialogDescription>
         </DialogHeader>

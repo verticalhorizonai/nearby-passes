@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeat, seatLabel } from '@/hooks/useSeat';
 import { Mark } from './Mark';
+import { Wordmark } from './Wordmark';
 import { AccountChip } from '@/components/near/AccountChip';
 
 interface AppHeaderProps {
@@ -22,7 +23,7 @@ export function AppHeader({ showSeat = true, actions }: AppHeaderProps) {
         <div className="flex min-w-0 items-center gap-2">
           <Link to="/" className="flex min-h-touch shrink-0 items-center gap-2 text-foreground no-underline hover:text-foreground" aria-label="Nearby home">
             <Mark size={26} />
-            <span className="font-display text-xl font-bold tracking-[-0.01em]">Nearby</span>
+            <Wordmark className="font-display text-xl font-bold tracking-[-0.01em]" />
           </Link>
           {showSeat && seat && (
             <span

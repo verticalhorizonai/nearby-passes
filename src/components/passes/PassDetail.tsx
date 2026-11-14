@@ -6,6 +6,7 @@
 import { useState, type ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { PassView } from '@/shared/types';
+import { PASSES_PRODUCT_NAME } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -115,7 +116,7 @@ export function PassDialog({ trigger, pass: given, tokenId }: PassDialogProps) {
         {shown ? (
           <PassDetail pass={shown} />
         ) : failed ? (
-          <ErrorState title="The pass did not load" message="Nearby could not read this pass just now. Try again in a moment." onRetry={() => void load()} />
+          <ErrorState title="The pass did not load" message={`${PASSES_PRODUCT_NAME} could not read this pass just now. Try again in a moment.`} onRetry={() => void load()} />
         ) : (
           <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading the pass">
             <Skeleton className="h-28 rounded-panel bg-tint" />

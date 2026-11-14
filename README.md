@@ -1,7 +1,7 @@
-# Nearby Passes
+# NEARby Passes
 
-Nearby Passes turns a local offer into a NEAR NFT that holds money and pays it out by rule. A sample merchant funds a
-few passes for an offer; Nearby's AI agent matches the offer to a stop on the shopper's calendar; after one tap the
+NEARby Passes turns a local offer into a NEAR NFT that holds money and pays it out by rule. A sample merchant funds a
+few passes for an offer; NEARby's AI agent matches the offer to a stop on the shopper's calendar; after one tap the
 agent's narrowly limited key claims a pass into the shopper's NEAR account; the merchant redeems it at the counter
 and the contract pays the cash back to whoever holds the pass. Unused passes refund to the merchant after they expire.
 
@@ -11,7 +11,7 @@ Everything runs on **NEAR testnet**. Every merchant, offer and pass is sample da
 |---|---|
 | `nfts` NFTs That Do Something | Each pass is an NEP-171 token that holds a balance, carries the right to an offer, and changes status, image and metadata as it is claimed, redeemed or refunded. |
 | `security` AI Security & Defense | The agent's only key is a function-call key for one method (`claim_pass`) on one contract, with a 3 NEAR gas allowance and no way to attach a deposit. The contract accepts claims from that account alone, and the owner can pause claiming on chain. |
-| `agents` Agent Economy | Nearby's agent acts on chain for the shopper and pays the gas for each claim; any outside agent can find funded passes through Nearby's public MCP server. |
+| `agents` Agent Economy | NEARby's agent acts on chain for the shopper and pays the gas for each claim; any outside agent can find funded passes through NEARby's public MCP server. |
 
 > **Sample data notice.** Every merchant, offer, appointment and pass in this demo is made up and labelled as sample
 > data. None is a real business or person. Passes use NEAR testnet only. Payments for offers run in the PayPal sandbox;
@@ -62,7 +62,7 @@ Testnet accounts:
 | Account | Role | Explorer |
 |---|---|---|
 | `contract.nearby-passes.testnet` | The passes contract (`contracts/passes/`) | https://testnet.near.rocks/account/contract.nearby-passes.testnet |
-| `agent.nearby-passes.testnet` | Nearby's agent: one function-call key for `claim_pass` | https://testnet.near.rocks/account/agent.nearby-passes.testnet |
+| `agent.nearby-passes.testnet` | NEARby's agent: one function-call key for `claim_pass` | https://testnet.near.rocks/account/agent.nearby-passes.testnet |
 | `nearby-passes.testnet` | Contract owner (pause, set agent) | https://testnet.near.rocks/account/nearby-passes.testnet |
 | `saguaro-bean.`, `noodle-bar.`, `rillito-tacos.`, `dog-wash.nearby-passes.testnet` | Sample merchants [Sample] | https://testnet.near.rocks/account/saguaro-bean.nearby-passes.testnet |
 
@@ -80,7 +80,7 @@ Testnet accounts:
     the pass is Claimed and unexpired. The status changes first, then the balance is paid to whoever holds the pass.
   - `refund_expired`: anyone, at or after expiry, for an Open or Claimed pass. The balance returns to the merchant.
   - `set_claims_paused`, `set_agent`, `set_media_base_url`: the owner only, with 1 yoctoNEAR.
-  - Every status change rewrites the token's metadata and logs `nft_metadata_update` (NEP-171 1.2.0) and Nearby's own
+  - Every status change rewrites the token's metadata and logs `nft_metadata_update` (NEP-171 1.2.0) and NEARby's own
     `nearby_pass` events (`pass_funded`, `pass_claimed`, `pass_redeemed`, `pass_refunded`, `claims_paused`).
   - Each payout is followed by a private callback, `on_payout`: if the transfer fails, the pass returns to its earlier
     status and logs `payout_failed`, so the balance is never stranded and a second redeem or refund can pay.
@@ -154,7 +154,8 @@ Without `NEAR_NETWORK`, the app runs as Nearby does, with no pass controls.
 ## Disclosure
 
 Nearby was first built in November 2026 as an entry to the PayPal AI Hackathon: calendar-aware local offers with
-PayPal sandbox checkout (https://github.com/verticalhorizonai/nearby). Everything about passes is new in this
+PayPal sandbox checkout (https://github.com/verticalhorizonai/nearby). NEARby is the same app with passes added; only
+the capitals of its name changed. Everything about passes is new in this
 repository: the passes contract, the operator scripts, the agent's limited key, the visitors' NEAR accounts, and every
 pass-related change to the app (claiming, My passes, the merchant's NEAR panel, funding, redeeming, refunds, upkeep,
 the home page sections, and the pass facts given to the agent and the MCP tools). The comparison of the two tags shows
@@ -166,7 +167,7 @@ Libraries: `near-sdk` and `near-contract-standards` 5.30.1 (contract); `near-api
 Fastify, React, Vite, Tailwind CSS with shadcn/ui, PostgreSQL (`pg`), Vitest, the MCP TypeScript SDK; Claude through
 the Anthropic Messages API; the PayPal Orders v2 REST API (sandbox); Google Places and the Maps JavaScript API.
 
-## How Nearby works (the app the passes build on)
+## How NEARby works (the app the passes build on)
 
 - **The calendar, over MCP.** `nearby-calendar-mcp` is a small read-only MCP server in this repository
   (`src/services/calendarMcp/`). It has one tool, `list_upcoming_appointments`, and one back end: the demo calendar
@@ -193,7 +194,7 @@ the Anthropic Messages API; the PayPal Orders v2 REST API (sandbox); Google Plac
 - **The demo never depends on the model or on Google.** With the kill switch on (`AGENT_DISABLED=true`), a model
   error or a 20-second timeout, output that fails the checks, or a rate limit reached (30 requests per browser per
   hour, 300 in all), picks are the top two by score with a templated reason. With no Google key, the map is a drawn
-  plot of the appointment and Nearby's own merchants.
+  plot of the appointment and NEARby's own merchants.
 - **Merchants.** Any visitor can open a sample merchant's dashboard and post an offer. A posted offer belongs to the
   browser that posted it: it is shown, matched for picks and sold only there, and only that browser can edit or
   remove it. The eight sample offers are shared and never change; editing one makes that browser's own version,
@@ -204,7 +205,7 @@ the Anthropic Messages API; the PayPal Orders v2 REST API (sandbox); Google Plac
 
 ## Bring your own agent
 
-Nearby's offers are open to any AI assistant that speaks MCP, and the purchase is still one person's yes. The app
+NEARby's offers are open to any AI assistant that speaks MCP, and the purchase is still one person's yes. The app
 serves a small read-only MCP server at `/mcp` on its own address (for a local run, `http://localhost:3000/mcp`):
 Streamable HTTP, stateless, no sign-in.
 
@@ -237,10 +238,10 @@ It has two tools. Neither can buy anything.
 
 The tools call no model and no outside service, write nothing, and are rate limited per client address (60 requests
 a minute). To buy, a person opens `checkout_url` in a browser. That page changes nothing: it shows the offer with its
-Sample badge, the price from Nearby's database, the place and the time, and one button, **Review in Nearby**. The
+Sample badge, the price from NEARby's database, the place and the time, and one button, **Review in NEARby**. The
 button checks again that the offer still fits, adds the stop to that browser's week ("Added by your assistant") with
 the offer as a pick ("Suggested by your assistant"), and opens the stop. From there it is the usual flow: Yes, the
-confirmation sheet, approval on PayPal's sandbox page, the receipt. The pick's sentence is Nearby's own template. The
+confirmation sheet, approval on PayPal's sandbox page, the receipt. The pick's sentence is NEARby's own template. The
 `title` and `place` in the link are shown as plain text (at most 80 characters each), in place of "Stop from your
 assistant" and "Near <coordinates>", and are never given to the model. Reset demo removes these stops with their
 picks.
