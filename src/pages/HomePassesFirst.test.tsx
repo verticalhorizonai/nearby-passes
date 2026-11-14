@@ -39,7 +39,7 @@ describe('the home page with passes on (ruling 60)', () => {
   it('the hero leads with passes: eyebrow, text, line, the two buttons, and the example card with the pass', async () => {
     await renderHome(ON);
     await screen.findByText('An AI agent for local offers, with passes on NEAR');
-    expect(screen.getByText(/^NEARby reads where your calendar takes you this week and finds an offer near each stop\. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/^NEARby reads where your calendar takes you this week and finds merchant offers near your stops\. Claim one as a pass, and NEARby’s agent puts it in your NEAR account: an NFT that holds money and pays you cash back when you show up to use it\.$/)).toBeInTheDocument();
     expect(screen.getByText('No account, no wallet and no setup. Testnet only: testnet NEAR has no value.')).toBeInTheDocument();
     const hero = screen.getByRole('heading', { level: 1 }).closest('section')!;
     expect(within(hero).getAllByRole('link', { name: /Try the demo/ })[0]).toHaveAttribute('href', '/seats');

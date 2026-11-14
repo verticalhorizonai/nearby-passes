@@ -209,7 +209,7 @@ export function HomePage() {
           </h1>
           <p className="max-w-[520px] text-lg leading-[1.55] text-body-text sm:text-[19px]">
             {passesOn ? (
-              `${name} reads where your calendar takes you this week and finds an offer near each stop. Say yes once, and its agent claims you a pass: an NFT on NEAR that holds money and pays you back when you show up.`
+              `${name} reads where your calendar takes you this week and finds merchant offers near your stops. Claim one as a pass, and ${name}’s agent puts it in your NEAR account: an NFT that holds money and pays you cash back when you show up to use it.`
             ) : (
               <>
                 {name} reads where your calendar takes you this week, finds one or two offers that fit each stop, and tells you why in a sentence. Say
