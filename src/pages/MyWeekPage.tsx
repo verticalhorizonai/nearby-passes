@@ -5,7 +5,7 @@
 // Nearby Passes (F8.5; REQ-09-05; AC-REQ-09-05-02): beside a stop's title a pill "1 pass" / "2 passes" in the style of
 // the "1 bought" pill, and a link to My passes on the page; nothing at 0 or with passes off.
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Ticket } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Appointment, CalendarConnection, UpcomingAppointment, UpcomingAppointmentsResult } from '@/shared/types';
@@ -15,6 +15,7 @@ import { AppointmentToggle } from '@/components/appointments/AppointmentToggle';
 import { WeekMap } from '@/components/map/WeekMap';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/ui/cn';
+import { buttonVariants } from '@/components/ui/button';
 import { api, useApiQuery } from '@/hooks/useApi';
 import { usePicksPrefetch } from '@/hooks/usePicksPrefetch';
 import { useAgentRuns } from '@/hooks/useAgentRuns';
@@ -239,12 +240,18 @@ export function MyWeekPage() {
           {announce}
         </p>
         {passesOn && (
-          <p className="text-sm text-secondary-text" data-testid="my-passes-link">
-            Passes you claim are kept on NEAR testnet.{' '}
-            <Link to="/passes" className="inline-flex min-h-touch items-center font-semibold">
+          // Ruling 69: My passes as an outlined button (the pick card's secondary style) with the ticket icon, first on
+          // its line; the sentence follows as a caption and may wrap under it on a phone.
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="my-passes-link">
+            <Link
+              to="/passes"
+              className={cn(buttonVariants({ variant: 'secondary' }), 'text-secondary-foreground no-underline hover:text-secondary-foreground')}
+            >
+              <Ticket aria-hidden="true" />
               My passes
             </Link>
-          </p>
+            <p className="text-sm text-secondary-text">Passes you claim are kept on NEAR testnet.</p>
+          </div>
         )}
         {calendarMissing && (
           <p className="text-sm text-secondary-text" data-testid="calendar-missing">

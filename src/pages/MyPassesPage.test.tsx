@@ -200,5 +200,16 @@ describe('My week counts the stop\'s passes (REQ-09-05)', () => {
     const rows = screen.getAllByTestId('appointment-row');
     expect(rows[2].querySelector('[data-testid="pass-pill"]')).toBeNull();
     expect(within(screen.getByTestId('my-passes-link')).getByRole('link', { name: 'My passes' })).toHaveAttribute('href', '/passes');
+    // Ruling 69: an outlined button (the pick card's secondary style) with the ticket icon, first on its line, at least
+    // 44 px tall; the sentence follows it as a caption in the secondary text style.
+    const line = screen.getByTestId('my-passes-link');
+    const link = within(line).getByRole('link', { name: 'My passes' });
+    expect(line.firstElementChild).toBe(link);
+    expect(link).toHaveClass('border', 'border-outline-border', 'bg-secondary', 'min-h-touch', 'rounded-full');
+    expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(link).toHaveTextContent(/^My passes$/);
+    const caption = link.nextElementSibling as HTMLElement;
+    expect(caption).toHaveTextContent(/^Passes you claim are kept on NEAR testnet\.$/);
+    expect(caption).toHaveClass('text-secondary-text');
   });
 });
