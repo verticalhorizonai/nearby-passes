@@ -3,7 +3,7 @@
 // quotation on a #F6F8F4 panel, distance and valid window with small icons, then Yes (primary, twice as wide) and
 // Not now (secondary), both 48 px tall. `Pick.score` is not drawn (ruling 3).
 // Nearby Passes (F8.3 to F8.5; REQ-09-03, REQ-09-05): a pick whose offer has an open pass shows "Pass: You get 0.1
-// testnet NEAR back when you use this offer." (ruling 71) and Claim as pass beside Yes; once claimed, "Pass claimed" and Show pass, and no Yes, Claim as pass or Not now.
+// testnet NEAR when you use this offer." (rulings 71, 73) and Claim as pass beside Yes; once claimed, "Pass claimed" and Show pass, and no Yes, Claim as pass or Not now.
 // A pick with no pass (always so with passes off) is drawn exactly as before.
 // Ruling 67: while passes are on, Yes reads "Buy now" and Not now "Hide pick" (pickLabels.ts); on a card with an open
 // pass, Claim as pass is the filled button and Buy now the outlined one. The order and the heights do not change.

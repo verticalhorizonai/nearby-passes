@@ -94,7 +94,7 @@ export function HeroDrawing({ withPass = false }: { withPass?: boolean } = {}) {
         <div className="text-[15px] text-body-text">&ldquo;Saguaro Bean is two blocks from your 9:30 and the deal runs until 11.&rdquo;</div>
         {withPass ? (
           <>
-            <div className="text-[13px] font-semibold text-primary">Pass: You get 0.1 testnet NEAR back when you use this offer.</div>
+            <div className="text-[13px] font-semibold text-primary">Pass: You get 0.1 testnet NEAR when you use this offer.</div>
             {/* Ruling 67: the real card's words and emphasis with a pass, Claim as pass filled and Buy now outlined. */}
             <div className="flex gap-2.5" aria-hidden="true">
               <span className="flex min-h-touch flex-1 items-center justify-center rounded-full border border-outline-border bg-card text-[15px] font-semibold">

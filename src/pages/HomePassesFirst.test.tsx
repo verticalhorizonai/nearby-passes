@@ -47,8 +47,8 @@ describe('the home page with passes on (ruling 60)', () => {
     const card = screen.getByRole('img', { name: 'Sample pick card' });
     expect(card).toHaveTextContent('Saguaro Bean Co.');
     expect(card).toHaveTextContent('Sample');
-    expect(card).toHaveTextContent('Pass: You get 0.1 testnet NEAR back when you use this offer.');
-    expect(card).not.toHaveTextContent('Pass: 0.1 testnet NEAR back');
+    expect(card).toHaveTextContent('Pass: You get 0.1 testnet NEAR when you use this offer.');
+    expect(card).not.toHaveTextContent('NEAR back');
     expect(card).toHaveTextContent('Claim as pass');
     expect(screen.queryByText('An AI agent for local offers, paid with PayPal')).not.toBeInTheDocument();
   });
